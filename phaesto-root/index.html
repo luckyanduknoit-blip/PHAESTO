@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+   ______                            __
+  / ____/___  ____ ___  ____  __  __/ /____  _____
+ / /   / __ \/ __ `__ \/ __ \/ / / / __/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ / /_/  __/ /
+\____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
+                    /_/
+        Created with Perplexity Computer
+        https://www.perplexity.ai/computer
+-->
+
+<!-- Perplexity Computer Attribution — SEO Meta Tags -->
+<meta name="generator" content="Perplexity Computer">
+<meta name="author" content="Perplexity Computer">
+<meta property="og:see_also" content="https://www.perplexity.ai/computer">
+<link rel="author" href="https://www.perplexity.ai/computer">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phaēsto Atelier</title>
+<meta name="description" content="Phaēsto Atelier. Some things were never meant to be found. They find you.">
+
+<link rel="stylesheet" href="./base.css">
+<link rel="stylesheet" href="./style.css">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<style>
+  body { background: #0A0A0A; }
+  #ghost-screen { background: #0A0A0A; }
+</style>
+</head>
+<body>
+
+<!-- ============================================
+     THE GHOST LOADING SCREEN
+     ============================================ -->
+<div id="ghost-screen" aria-label="Loading">
+  <div class="ghost-sigil" aria-hidden="true">
+    <img src="./assets/sigil-logo.png" alt="" width="80" height="80">
+  </div>
+  <div class="ghost-sentence" id="ghost-sentence" aria-hidden="true"></div>
+</div>
+
+<!-- AMBIENT GRAIN OVERLAY -->
+<svg class="grain" aria-hidden="true">
+  <filter id="grain-filter">
+    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch"/>
+  </filter>
+  <rect width="100%" height="100%" filter="url(#grain-filter)"/>
+</svg>
+
+<!-- ============================================
+     SIGIL NAVIGATION TRIGGER (replaces hamburger)
+     ============================================ -->
+<button class="sigil-trigger" id="sigil-trigger" aria-label="Open navigation" aria-expanded="false">
+  <img class="sigil-trigger-img" src="./assets/sigil-logo-nav.png" alt="" width="36" height="36">
+</button>
+
+<!-- ============================================
+     FULLSCREEN NAVIGATION OVERLAY
+     ============================================ -->
+<nav class="nav-overlay" id="nav-overlay" role="navigation" aria-label="Main navigation">
+  <div class="nav-overlay-inner">
+    <a href="#" class="nav-page-link" data-page="home">Home</a>
+    <a href="#" class="nav-page-link" data-page="relics">Divine Relics</a>
+    <a href="#" class="nav-page-link" data-page="about">About</a>
+    <a href="#" class="nav-page-link" data-page="forge">The Forge</a>
+    <div class="nav-divider"></div>
+    <span class="nav-locked" aria-label="Locked — The Ledger is accessible to holders only">
+      The Ledger
+      <span class="nav-locked-sub">holders only</span>
+    </span>
+    <span class="nav-locked" aria-label="Locked — The Void Card is accessible to holders only">
+      The Void Card
+      <span class="nav-locked-sub">not yet</span>
+    </span>
+  </div>
+</nav>
+
+<!-- TEMPLE ARCHITECTURAL OVERLAY -->
+<div class="temple-overlay" id="temple-overlay" aria-hidden="true">
+  <div class="temple-col temple-col-left">
+    <svg class="temple-arch" viewBox="0 0 120 800" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M120 0 L120 800" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 0 Q60 60, 120 60" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 200 Q60 260, 120 260" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 400 Q60 460, 120 460" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 600 Q60 660, 120 660" stroke="currentColor" stroke-width="0.5"/>
+    </svg>
+  </div>
+  <div class="temple-col temple-col-right">
+    <svg class="temple-arch" viewBox="0 0 120 800" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 0 L0 800" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 0 Q60 60, 0 60" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 200 Q60 260, 0 260" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 400 Q60 460, 0 460" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M60 600 Q60 660, 0 660" stroke="currentColor" stroke-width="0.5"/>
+    </svg>
+  </div>
+  <div class="temple-top-arch">
+    <svg viewBox="0 0 400 120" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 120 Q200 -20, 400 120" stroke="currentColor" stroke-width="0.5"/>
+      <path d="M40 120 Q200 10, 360 120" stroke="currentColor" stroke-width="0.5"/>
+    </svg>
+  </div>
+</div>
+
+<!-- ============================================
+     PAGE CONTAINER — all pages live here
+     ============================================ -->
+<div id="page-container">
+
+  <!-- ===== PAGE: HOME ===== -->
+  <div class="page" id="page-home" data-page="home">
+    <section class="hero" id="hero">
+      <div class="hero-bg">
+        <img src="./assets/products/piece-5.jpeg" alt="" loading="eager" aria-hidden="true">
+      </div>
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <div class="hero-line"></div>
+        <h1 class="hero-title">Phaēsto</h1>
+        <p class="hero-subtitle">Some things were never lost</p>
+      </div>
+      <div class="hero-scroll-hint" aria-hidden="true">
+        <span>Enter</span>
+        <div class="scroll-line"></div>
+      </div>
+    </section>
+
+    <section class="section" id="statement">
+      <div class="section-narrow" style="text-align: center;">
+        <div class="section-divider"></div>
+        <p class="reveal" style="font-family: var(--font-display); font-size: var(--text-lg); font-style: italic; color: var(--color-text-muted); line-height: 2; letter-spacing: 0.05em;">
+          There is a craft older than language.<br>
+          It was not preserved. It was hidden.<br>
+          You are not here by accident.
+        </p>
+      </div>
+    </section>
+
+    <!-- Void Card + Ledger teasers on home — visible but sealed -->
+    <section class="section sealed-section">
+      <div class="section-narrow" style="text-align: center;">
+        <div class="sealed-block reveal">
+          <div class="sealed-icon">
+            <img src="./assets/sigil-logo-nav.png" alt="" width="40" height="40" style="opacity: 0.3;">
+          </div>
+          <p class="sealed-text">There are rooms behind this wall.<br>The Ledger. The Void Card.<br>You'll know when the door opens.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer" role="contentinfo">
+      <div class="footer-brand">Phaēsto Atelier</div>
+      <div class="footer-legal">
+        &copy; 2026 Phaēsto Atelier. All rights reserved.
+        <br>
+        <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">
+          Created with Perplexity Computer
+        </a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===== PAGE: DIVINE RELICS ===== -->
+  <div class="page" id="page-relics" data-page="relics" style="display:none;">
+
+    <section class="section page-header-section">
+      <div class="section-label reveal">Divine Relics</div>
+      <h2 class="section-title reveal">Eight Casts</h2>
+    </section>
+
+    <section class="section">
+      <div class="altars">
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-1.jpeg" alt="The Sigil Chain" loading="lazy" width="1024" height="904">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast I</span>
+            <h3 class="altar-name">The Sigil Chain</h3>
+            <p class="altar-material">925 Sterling Silver · 18–22g</p>
+            <p class="altar-desc">The links are counted. Not by everyone.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-2.jpeg" alt="The Vishwakarma" loading="lazy" width="962" height="1024">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast II</span>
+            <h3 class="altar-name">The Vishwakarma</h3>
+            <p class="altar-material">925 Sterling Silver · 10–15g</p>
+            <p class="altar-desc">The name predates the alphabet.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-3.jpeg" alt="The Eternal Loop" loading="lazy" width="1024" height="904">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast III</span>
+            <h3 class="altar-name">The Eternal Loop</h3>
+            <p class="altar-material">925 Sterling Silver · 55–65g</p>
+            <p class="altar-desc">No clasp. No beginning. The weight is the point.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-4.jpeg" alt="The Seal" loading="lazy" width="1024" height="904">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast IV</span>
+            <h3 class="altar-name">The Seal</h3>
+            <p class="altar-material">925 Sterling Silver · 9–13g</p>
+            <p class="altar-desc">Leaves a mark in wax. Very few would recognize it.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-5.jpeg" alt="The Anchor" loading="lazy" width="962" height="1024">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast V</span>
+            <h3 class="altar-name">The Anchor</h3>
+            <p class="altar-material">925 Sterling Silver · 60–70g</p>
+            <p class="altar-desc">Not available at first.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-6.jpeg" alt="The Lineage" loading="lazy" width="1024" height="535">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast VI</span>
+            <h3 class="altar-name">The Lineage</h3>
+            <p class="altar-material">925 Sterling Silver · 18–22g</p>
+            <p class="altar-desc">Two scripts. One chain. The pattern is older than the piece.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-7.jpeg" alt="The Guard" loading="lazy" width="1024" height="640">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast VII</span>
+            <h3 class="altar-name">The Guard</h3>
+            <p class="altar-material">925 Sterling Silver · 22–26g</p>
+            <p class="altar-desc">No medallion. No softness. Rarely allocated.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+        <article class="altar reveal">
+          <div class="altar-image">
+            <img src="./assets/products/piece-8.jpeg" alt="The Whisper" loading="lazy" width="1024" height="904">
+            <div class="altar-spotlight"></div>
+          </div>
+          <div class="altar-info">
+            <span class="altar-number">Cast VIII</span>
+            <h3 class="altar-name">The Whisper</h3>
+            <p class="altar-material">925 Sterling Silver · 5–8g</p>
+            <p class="altar-desc">You'd miss it unless you knew.</p>
+            <span class="altar-price">By allocation only</span>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <footer class="footer" role="contentinfo">
+      <div class="footer-brand">Phaēsto Atelier</div>
+      <div class="footer-legal">
+        &copy; 2026 Phaēsto Atelier.
+        <br>
+        <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===== PAGE: ABOUT ===== -->
+  <div class="page" id="page-about" data-page="about" style="display:none;">
+
+    <section class="section mythology page-header-section">
+      <div class="section-label reveal">Fragments</div>
+      <h2 class="section-title reveal">Before the Name</h2>
+
+      <div class="mythology-grid">
+        <div class="mythology-block reveal">
+          <div class="mythology-icon">&#x2726;</div>
+          <h3 class="mythology-heading">The First Architect</h3>
+          <p class="mythology-text">
+            There is a name older than every empire. The one who forged the weapons of gods and built the ceilings of heaven. We didn't choose this lineage. It chose the work.
+          </p>
+        </div>
+
+        <div class="mythology-block reveal">
+          <div class="mythology-icon">&#x271B;</div>
+          <h3 class="mythology-heading">The Mark</h3>
+          <p class="mythology-text">
+            Four arms. Not random. Compressed geometry that encodes something most people walk past every day without recognizing. Look closer.
+          </p>
+        </div>
+
+        <div class="mythology-block reveal">
+          <div class="mythology-icon">&#x25C8;</div>
+          <h3 class="mythology-heading">The Conductor</h3>
+          <p class="mythology-text">
+            There's a reason silver was sacred before it was currency. The same property that made it holy still runs through every gram. Cast, never printed. The fire remembers.
+          </p>
+        </div>
+
+        <div class="mythology-block reveal">
+          <div class="mythology-icon">&#x2756;</div>
+          <h3 class="mythology-heading">&mdash;</h3>
+          <p class="mythology-text">
+            If you're still reading, you already know whether this is for you. We don't convince. We don't explain. The frequency either resonates or it doesn't.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer" role="contentinfo">
+      <div class="footer-brand">Phaēsto Atelier</div>
+      <div class="footer-legal">
+        &copy; 2026 Phaēsto Atelier.
+        <br>
+        <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===== PAGE: THE FORGE ===== -->
+  <div class="page" id="page-forge" data-page="forge" style="display:none;">
+
+    <section class="section forge page-header-section">
+      <div class="section-narrow">
+        <div class="section-label reveal">The Forge</div>
+        <h2 class="section-title reveal">Application</h2>
+
+        <div class="forge-counter reveal">
+          <span class="count" id="forge-count">412</span> remain
+        </div>
+
+        <div class="forge-questions">
+          <div class="forge-question reveal">
+            <label for="forge-q1">What will you devote yourself to until it is made real?</label>
+            <textarea id="forge-q1" placeholder="" rows="4"></textarea>
+          </div>
+
+          <div class="forge-question reveal">
+            <label for="forge-q2">Phone number or email</label>
+            <input type="text" id="forge-q2" class="forge-input" placeholder="" autocomplete="off">
+          </div>
+        </div>
+
+        <button type="button" class="forge-submit reveal" id="forge-submit-btn">
+          Submit
+        </button>
+      </div>
+    </section>
+
+    <footer class="footer" role="contentinfo">
+      <div class="footer-brand">Phaēsto Atelier</div>
+      <div class="footer-legal">
+        &copy; 2026 Phaēsto Atelier.
+        <br>
+        <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
+      </div>
+    </footer>
+  </div>
+
+</div>
+
+<script src="./app.js" defer></script>
+</body>
+</html>
