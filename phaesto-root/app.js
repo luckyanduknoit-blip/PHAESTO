@@ -6,6 +6,9 @@
 (function() {
   'use strict';
 
+  // If nfc.js has taken over this route, do nothing.
+  if (window.__PHAESTO_NFC_ROUTE__) return;
+
   // === GLYPH SET ===
   var GLYPHS = [
     'ॐ', 'अ', 'ख', 'त', 'म', 'श', 'ह', 'ज', 'र', 'ण',
