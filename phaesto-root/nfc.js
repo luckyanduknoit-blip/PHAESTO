@@ -46,6 +46,7 @@
     if (document.getElementById('phaesto-nfc-styles')) return;
     var css = [
       '@keyframes phaesto-fade-in { from { opacity: 0; } to { opacity: 1; } }',
+      '@keyframes phaesto-wall-open { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }',
       '@keyframes phaesto-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }',
       '#phaesto-overlay {',
       '  position: fixed; top: 0; left: 0; width: 100%; height: 100%;',
@@ -70,7 +71,8 @@
       '  background: #0a0a0a; padding: 60px 20px 80px;',
       '  font-family: "Cormorant Garamond", Georgia, serif;',
       '  color: rgba(255,255,255,0.85);',
-      '  animation: phaesto-fade-in 400ms ease;',
+      '  animation: phaesto-wall-open 800ms cubic-bezier(0.16, 1, 0.3, 1);',
+      '  border-bottom: 1px solid rgba(255,255,255,0.05);',
       '}',
       '#phaesto-certificate .cert-inner {',
       '  max-width: 600px; margin: 0 auto; text-align: center;',
@@ -220,29 +222,22 @@
 
   // ========== VERIFY FLOW ==========
   if (pathname.indexOf('/verify/') === 0 && pathname.length > '/verify/'.length) {
-    injectStyles();
     var token = pathname.slice('/verify/'.length);
-    var overlay = createOverlay();
 
-    var sigil = el('img', { src: getSigilSrc(), class: 'sigil-pulse', alt: '' });
-    var statusText = el('div', { class: 'overlay-text', textContent: 'Verifying\u2026' });
-    overlay.appendChild(sigil);
-    overlay.appendChild(statusText);
-
+    // Fetch silently. No overlay, no spinner, no indication anything is happening.
+    // If the token is invalid the site just loads normally — the wall never opens.
     fetch('/api/piece/' + encodeURIComponent(token))
       .then(function (r) {
         if (!r.ok) throw new Error('invalid');
         return r.json();
       })
       .then(function (data) {
-        overlay.remove();
+        // Valid token — the wall opens. Inject styles + certificate.
+        injectStyles();
         renderCertificate(data, token);
       })
       .catch(function () {
-        sigil.remove();
-        statusText.remove();
-        var errMsg = el('div', { class: 'overlay-error', textContent: 'This sigil could not be verified.' });
-        overlay.appendChild(errMsg);
+        // Silent failure. Nothing happened. You were never here.
       });
   }
 
