@@ -188,8 +188,11 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
+// Resolve once at startup so paths are always absolute
+const STATIC_DIR = path.resolve(__dirname);
+
 // Serve static files from the directory where server.js lives
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(STATIC_DIR));
 
 // SPA fallback
 app.get('*', (req, res) => {
@@ -197,7 +200,7 @@ app.get('*', (req, res) => {
   if (staticExt.test(req.path)) {
     return res.status(404).end();
   }
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(STATIC_DIR, 'index.html'));
 });
 
 app.listen(PORT, () => {
