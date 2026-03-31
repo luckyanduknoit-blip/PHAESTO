@@ -43,21 +43,18 @@
   }
 
   function dismissGhostScreen() {
-    // Kill the ghost loading screen so the certificate is visible
     var ghost = document.getElementById('ghost-screen');
     if (ghost) {
       ghost.style.transition = 'opacity 600ms ease';
       ghost.style.opacity = '0';
       setTimeout(function () { ghost.style.display = 'none'; }, 650);
     }
-    // Hide the main page container and nav so only the certificate shows
     var pageContainer = document.getElementById('page-container');
     if (pageContainer) pageContainer.style.display = 'none';
     var sigilTrigger = document.getElementById('sigil-trigger');
     if (sigilTrigger) sigilTrigger.style.display = 'none';
     var templeOverlay = document.getElementById('temple-overlay');
     if (templeOverlay) templeOverlay.style.display = 'none';
-    // Signal to app.js not to run its normal init
     window.__PHAESTO_NFC_ROUTE__ = true;
   }
 
@@ -237,33 +234,42 @@
   }
 
   function getSigilSrc() {
-    return './assets/sigil-logo.png';
+    return './assets/sigil-logo.jpg';
   }
 
   // ========== VERIFY FLOW ==========
   if (pathname.indexOf('/verify/') === 0 && pathname.length > '/verify/'.length) {
     var token = pathname.slice('/verify/'.length);
 
-    // Dismiss ghost screen immediately so the certificate can show
     window.addEventListener('DOMContentLoaded', function () {
       dismissGhostScreen();
     });
-    // Also try right now in case DOM is already ready
     if (document.readyState !== 'loading') dismissGhostScreen();
+
+    injectStyles();
+
+    // Show a loading state so we know the script is running
+    var loadingOverlay = createOverlay();
+    loadingOverlay.innerHTML = '<div class="overlay-text">Verifying</div>';
 
     fetch('/api/piece/' + encodeURIComponent(token))
       .then(function (r) {
-        if (!r.ok) throw new Error('invalid');
-        return r.json();
+        return r.json().then(function (body) {
+          if (!r.ok) throw new Error(body.error || r.status);
+          return body;
+        });
       })
       .then(function (data) {
-        injectStyles();
-        // Ensure ghost is gone before rendering
         dismissGhostScreen();
+        loadingOverlay.remove();
         renderCertificate(data, token);
       })
-      .catch(function () {
-        // Silent failure. Nothing happened. You were never here.
+      .catch(function (err) {
+        // Show the actual error so we can debug
+        loadingOverlay.innerHTML = '';
+        loadingOverlay.appendChild(
+          el('div', { class: 'overlay-error', textContent: 'Error: ' + (err.message || 'unknown') })
+        );
       });
   }
 
@@ -364,7 +370,6 @@
       inner.appendChild(el('div', { class: 'cert-founder-note', textContent: '\u201C' + piece.founder_note + '\u201D' }));
     }
 
-    // Transfer history
     if (transfers && transfers.length > 0) {
       var transferSection = el('div', { class: 'cert-transfers' });
       transferSection.appendChild(el('div', { class: 'cert-transfers-title', textContent: 'Transfer History' }));
@@ -377,14 +382,12 @@
       inner.appendChild(transferSection);
     }
 
-    // Transfer ownership button
     var transferBtn = el('button', { class: 'cert-btn', id: 'cert-transfer-btn', textContent: 'Transfer Ownership' });
     inner.appendChild(transferBtn);
 
     cert.appendChild(inner);
     document.body.insertBefore(cert, document.body.firstChild);
 
-    // Transfer initiation form
     transferBtn.addEventListener('click', function () {
       if (document.getElementById('cert-transfer-form')) return;
       var formDiv = el('div', { class: 'cert-transfer-form', id: 'cert-transfer-form' }, [
