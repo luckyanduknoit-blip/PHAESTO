@@ -191,10 +191,11 @@ app.post('/api/transfer/claim', async (req, res) => {
 // Serve static files from the directory where server.js lives
 app.use(express.static(path.join(__dirname)));
 
-// SPA fallback â€” only for routes with no file extension
-app.get('*', (req, res, next) => {
-  if (path.extname(req.path) !== '') {
-    return next(); // has extension = real file, let it 404 naturally
+// SPA fallback
+app.get('*', (req, res) => {
+  const staticExt = /\.(js|css|json|map|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot|mp4|webm|pdf)$/i;
+  if (staticExt.test(req.path)) {
+    return res.status(404).end();
   }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
