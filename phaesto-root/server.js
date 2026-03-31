@@ -209,8 +209,6 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  const fs = require('fs');
-  console.log(`Pha\u0113sto Atelier running on port ${PORT}`);
-  console.log(`Static root: ${STATIC_ROOT}`);
-  console.log(`Files: ${fs.readdirSync(STATIC_ROOT).join(', ')}`);
+  console.log('__dirname:', __dirname);
+  console.log('Files:', require('fs').readdirSync(__dirname));
 });
