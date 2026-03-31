@@ -10,7 +10,6 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const STATIC_ROOT = path.resolve(__dirname);
 
 // Supabase client (service role for full access)
 const supabase = createClient(
@@ -190,22 +189,14 @@ app.post('/api/transfer/claim', async (req, res) => {
 });
 
 // --- Static file serving ---
-// Resolve to an absolute path so express.static works regardless of cwd.
-app.use(express.static(STATIC_ROOT, {
+app.use(express.static(path.join(__dirname), {
   extensions: ['html'],
-  maxAge: '1h',
-  fallthrough: true
+  maxAge: '1h'
 }));
 
 // SPA fallback — serve index.html for all non-file routes.
-// Static assets (.js, .css, images, fonts) are already handled above.
-// If they weren't found there, they're genuinely missing — let them 404.
 app.get('*', (req, res) => {
-  const staticExt = /\.(js|css|html|json|map|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot|mp4|webm|pdf)$/i;
-  if (staticExt.test(req.path)) {
-    return res.status(404).end();
-  }
-  res.sendFile(path.join(STATIC_ROOT, 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => {
