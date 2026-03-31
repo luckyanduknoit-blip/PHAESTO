@@ -10,6 +10,7 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const STATIC_ROOT = path.resolve(__dirname);
 
 // Supabase client (service role for full access)
 const supabase = createClient(
@@ -189,25 +190,27 @@ app.post('/api/transfer/claim', async (req, res) => {
 });
 
 // --- Static file serving ---
-// Serve all static files from the same directory as server.js.
-// maxAge for assets so browsers cache images/fonts properly.
-app.use(express.static(__dirname, {
+// Resolve to an absolute path so express.static works regardless of cwd.
+app.use(express.static(STATIC_ROOT, {
   extensions: ['html'],
-  maxAge: '1h'
+  maxAge: '1h',
+  fallthrough: true
 }));
 
 // SPA fallback — serve index.html for all non-file routes.
-// Static assets (.js, .css, images, fonts) are already handled by express.static above.
+// Static assets (.js, .css, images, fonts) are already handled above.
 // If they weren't found there, they're genuinely missing — let them 404.
 app.get('*', (req, res) => {
-  // Match actual static file extensions (not JWT dots in /verify/token paths)
   const staticExt = /\.(js|css|html|json|map|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot|mp4|webm|pdf)$/i;
   if (staticExt.test(req.path)) {
     return res.status(404).end();
   }
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`Phaēsto Atelier running on port ${PORT}`);
+  const fs = require('fs');
+  console.log(`Pha\u0113sto Atelier running on port ${PORT}`);
+  console.log(`Static root: ${STATIC_ROOT}`);
+  console.log(`Files: ${fs.readdirSync(STATIC_ROOT).join(', ')}`);
 });
