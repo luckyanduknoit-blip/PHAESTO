@@ -196,11 +196,13 @@ app.use(express.static(__dirname, {
   maxAge: '1h'
 }));
 
-// SPA fallback — serve index.html ONLY for clean URL paths.
-// Never intercept requests for actual files (.js, .css, images, fonts, etc.).
-app.get('*', (req, res, next) => {
-  // If the path has a file extension, it's a missing static file — 404 it.
-  if (path.extname(req.path)) {
+// SPA fallback — serve index.html for all non-file routes.
+// Static assets (.js, .css, images, fonts) are already handled by express.static above.
+// If they weren't found there, they're genuinely missing — let them 404.
+app.get('*', (req, res) => {
+  // Match actual static file extensions (not JWT dots in /verify/token paths)
+  const staticExt = /\.(js|css|html|json|map|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot|mp4|webm|pdf)$/i;
+  if (staticExt.test(req.path)) {
     return res.status(404).end();
   }
   res.sendFile(path.join(__dirname, 'index.html'));
