@@ -42,6 +42,25 @@
     return 'No. ' + s;
   }
 
+  function dismissGhostScreen() {
+    // Kill the ghost loading screen so the certificate is visible
+    var ghost = document.getElementById('ghost-screen');
+    if (ghost) {
+      ghost.style.transition = 'opacity 600ms ease';
+      ghost.style.opacity = '0';
+      setTimeout(function () { ghost.style.display = 'none'; }, 650);
+    }
+    // Hide the main page container and nav so only the certificate shows
+    var pageContainer = document.getElementById('page-container');
+    if (pageContainer) pageContainer.style.display = 'none';
+    var sigilTrigger = document.getElementById('sigil-trigger');
+    if (sigilTrigger) sigilTrigger.style.display = 'none';
+    var templeOverlay = document.getElementById('temple-overlay');
+    if (templeOverlay) templeOverlay.style.display = 'none';
+    // Signal to app.js not to run its normal init
+    window.__PHAESTO_NFC_ROUTE__ = true;
+  }
+
   function injectStyles() {
     if (document.getElementById('phaesto-nfc-styles')) return;
     var css = [
@@ -73,6 +92,7 @@
       '  color: rgba(255,255,255,0.85);',
       '  animation: phaesto-wall-open 800ms cubic-bezier(0.16, 1, 0.3, 1);',
       '  border-bottom: 1px solid rgba(255,255,255,0.05);',
+      '  min-height: 100vh;',
       '}',
       '#phaesto-certificate .cert-inner {',
       '  max-width: 600px; margin: 0 auto; text-align: center;',
@@ -224,16 +244,22 @@
   if (pathname.indexOf('/verify/') === 0 && pathname.length > '/verify/'.length) {
     var token = pathname.slice('/verify/'.length);
 
-    // Fetch silently. No overlay, no spinner, no indication anything is happening.
-    // If the token is invalid the site just loads normally — the wall never opens.
+    // Dismiss ghost screen immediately so the certificate can show
+    window.addEventListener('DOMContentLoaded', function () {
+      dismissGhostScreen();
+    });
+    // Also try right now in case DOM is already ready
+    if (document.readyState !== 'loading') dismissGhostScreen();
+
     fetch('/api/piece/' + encodeURIComponent(token))
       .then(function (r) {
         if (!r.ok) throw new Error('invalid');
         return r.json();
       })
       .then(function (data) {
-        // Valid token — the wall opens. Inject styles + certificate.
         injectStyles();
+        // Ensure ghost is gone before rendering
+        dismissGhostScreen();
         renderCertificate(data, token);
       })
       .catch(function () {
@@ -243,6 +269,10 @@
 
   // ========== CLAIM FLOW ==========
   else if (pathname.indexOf('/transfer/claim/') === 0 && pathname.length > '/transfer/claim/'.length) {
+    window.__PHAESTO_NFC_ROUTE__ = true;
+    window.addEventListener('DOMContentLoaded', function () { dismissGhostScreen(); });
+    if (document.readyState !== 'loading') dismissGhostScreen();
+
     injectStyles();
     var transferCode = pathname.slice('/transfer/claim/'.length);
     var overlay = createOverlay();
