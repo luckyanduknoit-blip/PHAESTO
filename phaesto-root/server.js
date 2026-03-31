@@ -11,11 +11,8 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Always resolve relative to THIS file, no matter where node is invoked from
 const STATIC_DIR = path.resolve(__dirname);
 
-// Supabase client (service role for full access)
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://txepvzhmllhxpqeboodi.supabase.co',
   process.env.SUPABASE_SERVICE_KEY
@@ -24,9 +21,6 @@ const supabase = createClient(
 app.use(cors());
 app.use(express.json());
 
-// --- API Routes ---
-
-// GET /api/piece/:token — Verify NFC token and return certificate data
 app.get('/api/piece/:token', async (req, res) => {
   try {
     const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
@@ -69,7 +63,6 @@ app.get('/api/piece/:token', async (req, res) => {
   }
 });
 
-// POST /api/transfer/initiate — Start ownership transfer
 app.post('/api/transfer/initiate', async (req, res) => {
   try {
     const { token, seller_email } = req.body;
@@ -114,7 +107,6 @@ app.post('/api/transfer/initiate', async (req, res) => {
   }
 });
 
-// POST /api/transfer/claim — Claim ownership with transfer code
 app.post('/api/transfer/claim', async (req, res) => {
   try {
     const { transfer_code, new_owner_name, new_owner_email } = req.body;
@@ -185,14 +177,16 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
-// --- Static file serving ---
 app.use(express.static(STATIC_DIR, {
   extensions: ['html'],
   maxAge: '1h',
   fallthrough: true
 }));
 
-// SPA fallback
+app.get('/verify/*', (req, res) => {
+  res.sendFile(path.join(STATIC_DIR, 'verify.html'));
+});
+
 app.get('*', (req, res) => {
   const staticExt = /\.(js|css|json|map|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot|mp4|webm|pdf)$/i;
   if (staticExt.test(req.path)) {
@@ -208,7 +202,6 @@ app.listen(PORT, () => {
   try {
     const files = fs.readdirSync(STATIC_DIR);
     console.log(`Files in static root (${files.length}):`, files.join(', '));
-    // Also list assets subfolder if present
     const assetsPath = path.join(STATIC_DIR, 'assets');
     if (fs.existsSync(assetsPath)) {
       const assets = fs.readdirSync(assetsPath);
