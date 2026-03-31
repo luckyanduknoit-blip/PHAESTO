@@ -7,9 +7,13 @@ const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 const crypto = require('crypto');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Always resolve relative to THIS file, no matter where node is invoked from
+const STATIC_DIR = path.resolve(__dirname);
 
 // Supabase client (service role for full access)
 const supabase = createClient(
@@ -22,7 +26,7 @@ app.use(express.json());
 
 // --- API Routes ---
 
-// GET /api/piece/:token â€” Verify NFC token and return certificate data
+// GET /api/piece/:token — Verify NFC token and return certificate data
 app.get('/api/piece/:token', async (req, res) => {
   try {
     const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
@@ -65,7 +69,7 @@ app.get('/api/piece/:token', async (req, res) => {
   }
 });
 
-// POST /api/transfer/initiate â€” Start ownership transfer
+// POST /api/transfer/initiate — Start ownership transfer
 app.post('/api/transfer/initiate', async (req, res) => {
   try {
     const { token, seller_email } = req.body;
@@ -77,7 +81,6 @@ app.post('/api/transfer/initiate', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { piece_id } = decoded;
 
-    // Verify seller is current owner
     const { data: ownership, error: ownerErr } = await supabase
       .from('ownership')
       .select('*')
@@ -93,7 +96,6 @@ app.post('/api/transfer/initiate', async (req, res) => {
       return res.status(403).json({ error: 'email_mismatch' });
     }
 
-    // Generate 8-char alphanumeric transfer code (uppercase)
     const transfer_code = crypto.randomBytes(4).toString('hex').toUpperCase();
     const transfer_code_expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
@@ -112,7 +114,7 @@ app.post('/api/transfer/initiate', async (req, res) => {
   }
 });
 
-// POST /api/transfer/claim â€” Claim ownership with transfer code
+// POST /api/transfer/claim — Claim ownership with transfer code
 app.post('/api/transfer/claim', async (req, res) => {
   try {
     const { transfer_code, new_owner_name, new_owner_email } = req.body;
@@ -121,7 +123,6 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(400).json({ error: 'missing_fields' });
     }
 
-    // Find valid ownership row with this transfer code
     const { data: ownership, error: findErr } = await supabase
       .from('ownership')
       .select('*')
@@ -134,13 +135,11 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(400).json({ error: 'invalid_or_expired_code' });
     }
 
-    // Generate new JWT for the new owner
     const new_token = jwt.sign(
       { piece_id: ownership.piece_id, token_id: uuidv4() },
       process.env.JWT_SECRET
     );
 
-    // Log the transfer
     const { error: logErr } = await supabase
       .from('transfer_log')
       .insert({
@@ -153,7 +152,6 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(500).json({ error: 'log_failed' });
     }
 
-    // Deactivate old ownership
     const { error: deactivateErr } = await supabase
       .from('ownership')
       .update({
@@ -167,7 +165,6 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(500).json({ error: 'deactivate_failed' });
     }
 
-    // Create new ownership row
     const { error: insertErr } = await supabase
       .from('ownership')
       .insert({
@@ -188,11 +185,12 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
-// Resolve once at startup so paths are always absolute
-const STATIC_DIR = path.resolve(__dirname);
-
-// Serve static files from the directory where server.js lives
-app.use(express.static(STATIC_DIR));
+// --- Static file serving ---
+app.use(express.static(STATIC_DIR, {
+  extensions: ['html'],
+  maxAge: '1h',
+  fallthrough: true
+}));
 
 // SPA fallback
 app.get('*', (req, res) => {
@@ -204,6 +202,21 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('__dirname:', __dirname);
-  console.log('Files:', require('fs').readdirSync(__dirname));
+  console.log(`Phāesto Atelier running on port ${PORT}`);
+  console.log(`__dirname: ${__dirname}`);
+  console.log(`STATIC_DIR: ${STATIC_DIR}`);
+  try {
+    const files = fs.readdirSync(STATIC_DIR);
+    console.log(`Files in static root (${files.length}):`, files.join(', '));
+    // Also list assets subfolder if present
+    const assetsPath = path.join(STATIC_DIR, 'assets');
+    if (fs.existsSync(assetsPath)) {
+      const assets = fs.readdirSync(assetsPath);
+      console.log(`Files in assets/ (${assets.length}):`, assets.join(', '));
+    } else {
+      console.log('WARNING: assets/ folder NOT found at', assetsPath);
+    }
+  } catch (e) {
+    console.error('Could not read static dir:', e.message);
+  }
 });
