@@ -188,14 +188,14 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
-// --- Static file serving ---
-app.use(express.static(path.join(__dirname), {
-  extensions: ['html'],
-  maxAge: '1h'
-}));
+// Serve static files from the directory where server.js lives
+app.use(express.static(path.join(__dirname)));
 
-// SPA fallback — serve index.html for all non-file routes.
-app.get('*', (req, res) => {
+// SPA fallback — only for routes with no file extension
+app.get('*', (req, res, next) => {
+  if (path.extname(req.path) !== '') {
+    return next(); // has extension = real file, let it 404 naturally
+  }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
