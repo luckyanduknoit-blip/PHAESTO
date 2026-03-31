@@ -22,7 +22,7 @@ app.use(express.json());
 
 // --- API Routes ---
 
-// GET /api/piece/:token — Verify NFC token and return certificate data
+// GET /api/piece/:token â€” Verify NFC token and return certificate data
 app.get('/api/piece/:token', async (req, res) => {
   try {
     const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
@@ -65,7 +65,7 @@ app.get('/api/piece/:token', async (req, res) => {
   }
 });
 
-// POST /api/transfer/initiate — Start ownership transfer
+// POST /api/transfer/initiate â€” Start ownership transfer
 app.post('/api/transfer/initiate', async (req, res) => {
   try {
     const { token, seller_email } = req.body;
@@ -112,7 +112,7 @@ app.post('/api/transfer/initiate', async (req, res) => {
   }
 });
 
-// POST /api/transfer/claim — Claim ownership with transfer code
+// POST /api/transfer/claim â€” Claim ownership with transfer code
 app.post('/api/transfer/claim', async (req, res) => {
   try {
     const { transfer_code, new_owner_name, new_owner_email } = req.body;
@@ -191,7 +191,7 @@ app.post('/api/transfer/claim', async (req, res) => {
 // Serve static files from the directory where server.js lives
 app.use(express.static(path.join(__dirname)));
 
-// SPA fallback — only for routes with no file extension
+// SPA fallback â€” only for routes with no file extension
 app.get('*', (req, res, next) => {
   if (path.extname(req.path) !== '') {
     return next(); // has extension = real file, let it 404 naturally
