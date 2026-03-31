@@ -188,13 +188,21 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
-// --- Static file serving (preserves original behavior) ---
-app.use(express.static(path.join(__dirname), {
-  extensions: ['html']
+// --- Static file serving ---
+// Serve all static files from the same directory as server.js.
+// maxAge for assets so browsers cache images/fonts properly.
+app.use(express.static(__dirname, {
+  extensions: ['html'],
+  maxAge: '1h'
 }));
 
-// SPA fallback — serve index.html for any unmatched route
-app.get('*', (req, res) => {
+// SPA fallback — serve index.html ONLY for clean URL paths.
+// Never intercept requests for actual files (.js, .css, images, fonts, etc.).
+app.get('*', (req, res, next) => {
+  // If the path has a file extension, it's a missing static file — 404 it.
+  if (path.extname(req.path)) {
+    return res.status(404).end();
+  }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
