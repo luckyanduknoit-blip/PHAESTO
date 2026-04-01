@@ -15,12 +15,36 @@ const STATIC_DIR = path.resolve(__dirname);
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://txepvzhmllhxpqeboodi.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.SUPABASE_SERVICE_KEY,
+  { auth: { persistSession: false } }
 );
 
 app.use(cors());
 app.use(express.json());
 
+// --- Diagnostic route (remove once confirmed working) ---
+app.get('/api/ping', async (req, res) => {
+  const results = {};
+
+  // 1. Check env vars are present
+  results.supabase_url = process.env.SUPABASE_URL ? 'set' : 'MISSING';
+  results.supabase_key_prefix = process.env.SUPABASE_SERVICE_KEY
+    ? process.env.SUPABASE_SERVICE_KEY.slice(0, 12) + '...'
+    : 'MISSING';
+  results.jwt_secret = process.env.JWT_SECRET ? 'set' : 'MISSING';
+
+  // 2. Try reading pieces table
+  const { data: pieces, error: pErr } = await supabase.from('pieces').select('piece_id').limit(5);
+  results.pieces_query = pErr ? ('ERROR: ' + pErr.message) : (pieces.map(p => p.piece_id));
+
+  // 3. Try reading ownership table
+  const { data: owners, error: oErr } = await supabase.from('ownership').select('piece_id, owner_name, is_current_owner').limit(5);
+  results.ownership_query = oErr ? ('ERROR: ' + oErr.message) : owners;
+
+  return res.json(results);
+});
+
+// GET /api/piece/:token
 app.get('/api/piece/:token', async (req, res) => {
   try {
     const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
@@ -33,7 +57,7 @@ app.get('/api/piece/:token', async (req, res) => {
       .single();
 
     if (pieceErr || !piece) {
-      return res.status(404).json({ error: 'piece_not_found' });
+      return res.status(404).json({ error: 'piece_not_found', detail: pieceErr ? pieceErr.message : null });
     }
 
     const { data: owner, error: ownerErr } = await supabase
@@ -44,7 +68,7 @@ app.get('/api/piece/:token', async (req, res) => {
       .single();
 
     if (ownerErr || !owner) {
-      return res.status(404).json({ error: 'owner_not_found' });
+      return res.status(404).json({ error: 'owner_not_found', detail: ownerErr ? ownerErr.message : null });
     }
 
     const { data: transferLog } = await supabase
@@ -59,10 +83,11 @@ app.get('/api/piece/:token', async (req, res) => {
       transferLog: transferLog || []
     });
   } catch (err) {
-    return res.status(401).json({ error: 'invalid_token' });
+    return res.status(401).json({ error: 'invalid_token', detail: err.message });
   }
 });
 
+// POST /api/transfer/initiate
 app.post('/api/transfer/initiate', async (req, res) => {
   try {
     const { token, seller_email } = req.body;
@@ -107,6 +132,7 @@ app.post('/api/transfer/initiate', async (req, res) => {
   }
 });
 
+// POST /api/transfer/claim
 app.post('/api/transfer/claim', async (req, res) => {
   try {
     const { transfer_code, new_owner_name, new_owner_email } = req.body;
@@ -177,16 +203,19 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
+// Static files
 app.use(express.static(STATIC_DIR, {
   extensions: ['html'],
   maxAge: '1h',
   fallthrough: true
 }));
 
+// Verify route → always serve verify.html
 app.get('/verify/*', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'verify.html'));
 });
 
+// SPA fallback
 app.get('*', (req, res) => {
   const staticExt = /\.(js|css|json|map|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot|mp4|webm|pdf)$/i;
   if (staticExt.test(req.path)) {
@@ -197,17 +226,15 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Phāesto Atelier running on port ${PORT}`);
-  console.log(`__dirname: ${__dirname}`);
   console.log(`STATIC_DIR: ${STATIC_DIR}`);
   try {
     const files = fs.readdirSync(STATIC_DIR);
-    console.log(`Files in static root (${files.length}):`, files.join(', '));
+    console.log(`Files (${files.length}):`, files.join(', '));
     const assetsPath = path.join(STATIC_DIR, 'assets');
     if (fs.existsSync(assetsPath)) {
-      const assets = fs.readdirSync(assetsPath);
-      console.log(`Files in assets/ (${assets.length}):`, assets.join(', '));
+      console.log(`assets/:`, fs.readdirSync(assetsPath).join(', '));
     } else {
-      console.log('WARNING: assets/ folder NOT found at', assetsPath);
+      console.log('WARNING: assets/ not found');
     }
   } catch (e) {
     console.error('Could not read static dir:', e.message);
