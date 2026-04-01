@@ -40,8 +40,30 @@ ALTER TABLE pieces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ownership ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transfer_log ENABLE ROW LEVEL SECURITY;
 
--- pieces is publicly readable
+-- pieces: publicly readable (certificate page needs piece data)
 CREATE POLICY "pieces_public_read" ON pieces FOR SELECT USING (true);
 
--- ownership and transfer_log: only service role can read (all reads are server-side)
--- No policies for anon role = denied by default when RLS is enabled
+-- ownership: service role full access (all reads/writes are server-side only)
+CREATE POLICY "ownership_service_select" ON ownership FOR SELECT TO service_role USING (true);
+CREATE POLICY "ownership_service_insert" ON ownership FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "ownership_service_update" ON ownership FOR UPDATE TO service_role USING (true) WITH CHECK (true);
+
+-- transfer_log: service role full access
+CREATE POLICY "transfer_log_service_select" ON transfer_log FOR SELECT TO service_role USING (true);
+CREATE POLICY "transfer_log_service_insert" ON transfer_log FOR INSERT TO service_role WITH CHECK (true);
+
+-- ============================================================
+-- RUN THIS IN SUPABASE SQL EDITOR IF TABLES ALREADY EXIST
+-- (skips CREATE TABLE, just fixes the RLS policies)
+-- ============================================================
+-- DROP POLICY IF EXISTS "ownership_service_select" ON ownership;
+-- DROP POLICY IF EXISTS "ownership_service_insert" ON ownership;
+-- DROP POLICY IF EXISTS "ownership_service_update" ON ownership;
+-- DROP POLICY IF EXISTS "transfer_log_service_select" ON transfer_log;
+-- DROP POLICY IF EXISTS "transfer_log_service_insert" ON transfer_log;
+--
+-- CREATE POLICY "ownership_service_select" ON ownership FOR SELECT TO service_role USING (true);
+-- CREATE POLICY "ownership_service_insert" ON ownership FOR INSERT TO service_role WITH CHECK (true);
+-- CREATE POLICY "ownership_service_update" ON ownership FOR UPDATE TO service_role USING (true) WITH CHECK (true);
+-- CREATE POLICY "transfer_log_service_select" ON transfer_log FOR SELECT TO service_role USING (true);
+-- CREATE POLICY "transfer_log_service_insert" ON transfer_log FOR INSERT TO service_role WITH CHECK (true);
