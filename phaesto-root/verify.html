@@ -289,14 +289,14 @@
   }
 
   function fmt(dateStr, opts) {
-    if (!dateStr) return '—';
+    if (!dateStr) return '\u2014';
     try { return new Date(dateStr).toLocaleDateString('en-US', opts); }
     catch (e) { return dateStr; }
   }
 
   if (!token) { showError(); return; }
 
-  fetch('/api/piece/' + encodeURIComponent(token))
+  fetch('/api/piece/' + token)
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.error) throw new Error(data.error);
@@ -304,14 +304,14 @@
       var o = data.owner;
       var tl = data.transferLog || [];
 
-      document.getElementById('piece-name').textContent = p.piece_name || p.name || '—';
-      document.getElementById('piece-id').textContent = p.piece_id || '—';
+      document.getElementById('piece-name').textContent = p.piece_name || p.name || '\u2014';
+      document.getElementById('piece-id').textContent = p.piece_id || '\u2014';
       document.getElementById('d-material').textContent = p.material || p.metal || '925 Sterling Silver';
-      document.getElementById('d-weight').textContent = p.weight_grams ? p.weight_grams + 'g' : '—';
+      document.getElementById('d-weight').textContent = p.weight_grams ? p.weight_grams + 'g' : '\u2014';
       document.getElementById('d-edition').textContent = p.edition_number ? p.edition_number + ' of 1' : '1 of 1';
       document.getElementById('d-forge').textContent = fmt(p.forge_date, { year: 'numeric', month: 'long', day: 'numeric' });
 
-      document.getElementById('owner-name').textContent = o.name || '—';
+      document.getElementById('owner-name').textContent = o.name || '\u2014';
       document.getElementById('owner-since').textContent = o.claimed_at
         ? 'Since ' + fmt(o.claimed_at, { year: 'numeric', month: 'long' })
         : '';
@@ -328,10 +328,10 @@
           var item = document.createElement('div');
           item.className = 'cert-transfer-item';
           item.innerHTML =
-            '<span class="cert-transfer-from">' + (t.from_owner_email || '—') + '</span>' +
+            '<span class="cert-transfer-from">' + (t.from_owner_email || '\u2014') + '</span>' +
             '<span class="cert-transfer-arrow">&#8594;</span>' +
             '<div class="cert-transfer-right">' +
-              '<div class="cert-transfer-to">' + (t.to_owner_email || '—') + '</div>' +
+              '<div class="cert-transfer-to">' + (t.to_owner_email || '\u2014') + '</div>' +
               '<div class="cert-transfer-date">' + fmt(t.transferred_at, { year: 'numeric', month: 'short', day: 'numeric' }) + '</div>' +
             '</div>';
           log.appendChild(item);
