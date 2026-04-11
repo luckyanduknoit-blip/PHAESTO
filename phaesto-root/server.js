@@ -26,18 +26,15 @@ app.use(express.json());
 app.get('/api/ping', async (req, res) => {
   const results = {};
 
-  // 1. Check env vars are present
   results.supabase_url = process.env.SUPABASE_URL ? 'set' : 'MISSING';
   results.supabase_key_prefix = process.env.SUPABASE_SERVICE_KEY
     ? process.env.SUPABASE_SERVICE_KEY.slice(0, 12) + '...'
     : 'MISSING';
   results.jwt_secret = process.env.JWT_SECRET ? 'set' : 'MISSING';
 
-  // 2. Try reading pieces table
   const { data: pieces, error: pErr } = await supabase.from('pieces').select('piece_id').limit(5);
   results.pieces_query = pErr ? ('ERROR: ' + pErr.message) : (pieces.map(p => p.piece_id));
 
-  // 3. Try reading ownership table
   const { data: owners, error: oErr } = await supabase.from('ownership').select('piece_id, owner_name, is_current_owner').limit(5);
   results.ownership_query = oErr ? ('ERROR: ' + oErr.message) : owners;
 
@@ -213,6 +210,12 @@ app.use(express.static(STATIC_DIR, {
 // Verify route → always serve verify.html
 app.get('/verify/*', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'verify.html'));
+});
+
+// Ledger route → always serve ledger.html
+// Access control is handled client-side via the holder cookie + /api/piece validation
+app.get('/ledger', (req, res) => {
+  res.sendFile(path.join(STATIC_DIR, 'ledger.html'));
 });
 
 // SPA fallback

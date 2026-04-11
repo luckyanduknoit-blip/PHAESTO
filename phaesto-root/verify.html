@@ -182,6 +182,110 @@
     .cert-transfer-to { font-size: 0.75rem; color: var(--color-text); }
     .cert-transfer-date { font-size: 0.6rem; color: var(--color-text-faint); letter-spacing: 0.1em; margin-top: 0.2rem; }
 
+    /* ================================================
+       VOID CARD REVEAL SECTION
+       ================================================ */
+    .void-divider {
+      width: 100%; max-width: 480px;
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(201, 169, 110, 0.18), transparent);
+      margin: 0.5rem 0 4rem;
+    }
+
+    .void-reveal {
+      max-width: 480px; width: 100%;
+      text-align: center;
+      margin-bottom: 3.5rem;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 1.2s var(--ease) 0.4s, transform 1.2s var(--ease) 0.4s;
+    }
+    .void-reveal.shown {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .void-sigil {
+      width: 38px; height: 38px; margin: 0 auto 1.8rem;
+      opacity: 0.18;
+    }
+    .void-sigil img { width: 100%; height: 100%; object-fit: contain; }
+
+    .void-eyebrow {
+      font-size: clamp(0.5rem, 0.4rem + 0.15vw, 0.6rem);
+      letter-spacing: 0.7em; text-transform: uppercase;
+      color: var(--color-gold); margin-bottom: 1.2rem; opacity: 0.8;
+    }
+
+    .void-heading {
+      font-size: clamp(1.4rem, 3vw, 2.4rem); font-weight: 300;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--color-text); margin-bottom: 1.2rem; line-height: 1.1;
+    }
+
+    .void-sub {
+      font-size: clamp(0.7rem, 0.6rem + 0.2vw, 0.85rem);
+      font-style: italic; color: var(--color-text-faint);
+      letter-spacing: 0.08em; line-height: 2;
+      margin-bottom: 2.8rem;
+    }
+
+    /* THE LEDGER BUTTON */
+    .ledger-btn {
+      display: inline-flex; align-items: center; gap: 0.75rem;
+      padding: 0.9rem 2.2rem;
+      border: 1px solid rgba(201, 169, 110, 0.25);
+      background: transparent;
+      color: var(--color-gold);
+      font-family: var(--font);
+      font-size: clamp(0.55rem, 0.45rem + 0.2vw, 0.7rem);
+      letter-spacing: 0.5em; text-transform: uppercase;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .ledger-btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(to right, transparent, rgba(201, 169, 110, 0.06), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .ledger-btn:hover {
+      border-color: rgba(201, 169, 110, 0.55);
+      color: #e8c98a;
+    }
+    .ledger-btn:hover::before { opacity: 1; }
+    .ledger-btn-arrow {
+      font-size: 0.9rem; opacity: 0.6;
+      transition: transform 0.3s var(--ease);
+    }
+    .ledger-btn:hover .ledger-btn-arrow { transform: translateX(4px); }
+
+    /* ACCESS PILLS */
+    .access-pills {
+      display: flex; gap: 1rem; justify-content: center;
+      flex-wrap: wrap; margin-bottom: 2.5rem;
+    }
+    .access-pill {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 1rem;
+      border: 1px solid rgba(245, 243, 240, 0.08);
+      font-size: 0.55rem; letter-spacing: 0.45em; text-transform: uppercase;
+      color: var(--color-text-faint);
+    }
+    .access-pill-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--color-gold); opacity: 0.7;
+      flex-shrink: 0;
+    }
+    .access-pill.active {
+      border-color: rgba(201, 169, 110, 0.2);
+      color: var(--color-gold);
+    }
+
     /* FOOTER NOTE */
     .cert-footer {
       max-width: 420px; text-align: center;
@@ -201,6 +305,17 @@
       letter-spacing: 0.7em; text-transform: uppercase;
       color: var(--color-text-faint); opacity: 0.35;
     }
+
+    /* Back to site link */
+    .back-link {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      margin-top: 2.5rem;
+      font-size: 0.6rem; letter-spacing: 0.45em; text-transform: uppercase;
+      color: var(--color-text-faint); text-decoration: none;
+      opacity: 0.5;
+      transition: opacity 0.3s ease;
+    }
+    .back-link:hover { opacity: 1; }
   </style>
 </head>
 <body>
@@ -260,17 +375,55 @@
     <div id="transfer-log"></div>
   </div>
 
+  <!-- ================================================
+       VOID CARD + LEDGER ACCESS REVEAL
+       ================================================ -->
+  <div class="void-divider"></div>
+
+  <div class="void-reveal" id="void-reveal">
+    <div class="void-sigil">
+      <img src="/assets/sigil-logo.png" alt="">
+    </div>
+    <p class="void-eyebrow">This is</p>
+    <h2 class="void-heading">The Void Card</h2>
+    <p class="void-sub">
+      The door is open now.<br>
+      You hold one of the only pieces that exists.
+    </p>
+
+    <div class="access-pills">
+      <div class="access-pill active">
+        <div class="access-pill-dot"></div>
+        The Void Card
+      </div>
+      <div class="access-pill active">
+        <div class="access-pill-dot"></div>
+        The Ledger
+      </div>
+    </div>
+
+    <a href="/ledger" class="ledger-btn">
+      Enter The Ledger
+      <span class="ledger-btn-arrow">&#8594;</span>
+    </a>
+  </div>
+  <!-- end void reveal -->
+
   <div class="cert-footer">
     <div class="cert-footer-rule"></div>
     <p class="cert-founder-note" id="founder-note"></p>
     <p class="cert-brand">Phāesto Atelier &middot; Est. MMXXVI</p>
   </div>
+
+  <a href="/" class="back-link">&#8592; Return to Phaēsto Atelier</a>
 </div>
 
 <script>
 (function () {
-  const parts = window.location.pathname.split('/verify/');
-  const token = parts[1] ? parts[1].split('/')[0] : null;
+  var TOKEN_COOKIE_NAME = 'phaesto_holder';
+
+  var parts = window.location.pathname.split('/verify/');
+  var token = parts[1] ? parts[1].split('/')[0] : null;
 
   function showError() {
     document.getElementById('loading').classList.add('fade-out');
@@ -285,6 +438,11 @@
     setTimeout(function () {
       document.getElementById('loading').style.display = 'none';
       document.getElementById('certificate').classList.add('revealed');
+      // Stagger the void card reveal
+      setTimeout(function () {
+        var vr = document.getElementById('void-reveal');
+        if (vr) vr.classList.add('shown');
+      }, 600);
     }, 900);
   }
 
@@ -292,6 +450,13 @@
     if (!dateStr) return '\u2014';
     try { return new Date(dateStr).toLocaleDateString('en-US', opts); }
     catch (e) { return dateStr; }
+  }
+
+  function setHolderCookie(token) {
+    // Session cookie (no expiry = closes with browser session)
+    // Use SameSite=Lax so it works for same-site navigation
+    document.cookie = TOKEN_COOKIE_NAME + '=' + encodeURIComponent(token) +
+      '; path=/; SameSite=Lax';
   }
 
   if (!token) { showError(); return; }
@@ -337,6 +502,9 @@
           log.appendChild(item);
         });
       }
+
+      // Set session cookie so /ledger knows this is a verified holder
+      setHolderCookie(token);
 
       reveal();
     })
