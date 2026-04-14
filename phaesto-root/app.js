@@ -225,6 +225,10 @@
   // THE FORGE — Live Counter + Real Submit
   // =============================================
 
+  // SteinHQ → Google Sheets bridge
+  // Column header in Sheet must be exactly: Remaining
+  var STEIN_URL = 'https://api.steinhq.com/v1/storages/69dde2243807a370b048ce72/Sheet1?offset=0&limit=1';
+
   // Cached count so we don't re-fetch on re-visits within the same session
   var _forgeCountCache = null;
 
@@ -254,17 +258,18 @@
       setCountDisplay(_forgeCountCache);
       return;
     }
-var STEIN_URL = 'https://api.steinhq.com/v1/storages/69dde2243807a370b048ce72?offset=0&limit=1';
+
     fetch(STEIN_URL, { method: 'GET' })
-  .then(function(r) { return r.json(); })
-  .then(function(rows) {
-    if (!rows || !rows[0]) return;
-    var val = parseInt(rows[0]['Remaining'], 10);
-    if (!isNaN(val) && val >= 0) setCountDisplay(val);
-  })
-  .catch(function() {
-    // Silent fail — static default holds
-  });
+      .then(function(r) { return r.json(); })
+      .then(function(rows) {
+        if (!rows || !rows[0]) return;
+        var val = parseInt(rows[0]['Remaining'], 10);
+        if (!isNaN(val) && val >= 0) setCountDisplay(val);
+      })
+      .catch(function() {
+        // Silent fail — HTML default holds, user never sees 0 or blank
+      });
+  }
 
   function initForge() {
     var forgeSubmitBtn = document.getElementById('forge-submit-btn');
