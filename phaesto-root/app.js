@@ -119,7 +119,6 @@
   // SIGIL NAV TRIGGER
   // =============================================
   sigilTrigger.addEventListener('click', function() {
-    // Quick spin animation
     sigilTrigger.classList.add('spinning');
     setTimeout(function() {
       sigilTrigger.classList.remove('spinning');
@@ -136,7 +135,6 @@
     navIsOpen = true;
     navOverlay.classList.add('open');
     sigilTrigger.setAttribute('aria-expanded', 'true');
-    // Highlight current page
     navPageLinks.forEach(function(link) {
       link.classList.toggle('active', link.dataset.page === currentPage);
     });
@@ -148,7 +146,6 @@
     sigilTrigger.setAttribute('aria-expanded', 'false');
   }
 
-  // Close nav on Escape
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && navIsOpen) closeNav();
   });
@@ -170,34 +167,23 @@
   });
 
   function navigateTo(pageName) {
-    // Close nav first
     closeNav();
-
-    // Hide all pages
     var allPages = document.querySelectorAll('.page');
     allPages.forEach(function(p) {
       p.style.display = 'none';
       p.classList.remove('page-entering');
     });
-
-    // Show target page
     var targetEl = document.getElementById('page-' + pageName);
     if (targetEl) {
       targetEl.style.display = '';
-      // Small delay for transition to register
       requestAnimationFrame(function() {
         requestAnimationFrame(function() {
           targetEl.classList.add('page-entering');
         });
       });
     }
-
-    // Scroll to top
     window.scrollTo(0, 0);
-
     currentPage = pageName;
-
-    // Re-init any page-specific JS
     initPageFeatures(pageName);
   }
 
@@ -213,15 +199,12 @@
   // =============================================
   function updateTempleDepth() {
     if (!templeOverlay || !templeOverlay.classList.contains('active')) return;
-
     var scrollY = window.scrollY;
     var docHeight = document.documentElement.scrollHeight - window.innerHeight;
     var progress = Math.min(scrollY / (docHeight || 1), 1);
-
     var colOpacity = 0.15 + progress * 0.2;
     var cols = templeOverlay.querySelectorAll('.temple-col');
     cols.forEach(function(col) { col.style.opacity = colOpacity; });
-
     var topArch = templeOverlay.querySelector('.temple-top-arch');
     if (topArch) topArch.style.opacity = 0.08 + progress * 0.15;
   }
@@ -239,37 +222,115 @@
 
 
   // =============================================
-  // THE FORGE APPLICATION
+  // THE FORGE — Live Counter + Real Submit
   // =============================================
-  var currentCount = 412;
+
+  // Cached count so we don't re-fetch on re-visits within the same session
+  var _forgeCountCache = null;
+
+  function setCountDisplay(remaining) {
+    var countEl = document.getElementById('forge-count');
+    var submitBtn = document.getElementById('forge-submit-btn');
+    if (!countEl) return;
+
+    // Immutable ledger feel — no transition, just set it
+    countEl.textContent = remaining;
+    _forgeCountCache = remaining;
+
+    if (remaining <= 0 && submitBtn) {
+      freezeForge(submitBtn);
+    }
+  }
+
+  function freezeForge(btn) {
+    btn.textContent = 'The Forge is Cold. Check back in the next epoch.';
+    btn.disabled = true;
+    btn.classList.add('forge-cold');
+  }
+
+  function fetchForgeCount() {
+    // Use cached value if already fetched this session
+    if (_forgeCountCache !== null) {
+      setCountDisplay(_forgeCountCache);
+      return;
+    }
+
+    fetch('/api/forge/count', { method: 'GET', headers: { 'Accept': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (typeof data.remaining === 'number') {
+          setCountDisplay(data.remaining);
+        }
+      })
+      .catch(function() {
+        // Silent fail — ledger stays at last known value (412 default in HTML)
+      });
+  }
 
   function initForge() {
     var forgeSubmitBtn = document.getElementById('forge-submit-btn');
-    var forgeCount = document.getElementById('forge-count');
-
     if (!forgeSubmitBtn || forgeSubmitBtn._bound) return;
     forgeSubmitBtn._bound = true;
 
-    forgeSubmitBtn.addEventListener('click', function() {
-      var q1 = document.getElementById('forge-q1').value.trim();
-      var q2 = document.getElementById('forge-q2').value.trim();
+    // Fetch live count on every Forge page visit
+    fetchForgeCount();
 
-      if (q1 && q2) {
-        forgeSubmitBtn.textContent = 'Received';
-        forgeSubmitBtn.style.borderColor = 'var(--color-accent)';
-        forgeSubmitBtn.style.color = 'var(--color-accent)';
-        forgeSubmitBtn.disabled = true;
-        hapticPulse();
-        currentCount--;
-        if (forgeCount) forgeCount.textContent = currentCount;
-      } else {
+    forgeSubmitBtn.addEventListener('click', function() {
+      var intent = (document.getElementById('forge-q1') || {}).value || '';
+      var contact = (document.getElementById('forge-q2') || {}).value || '';
+
+      intent = intent.trim();
+      contact = contact.trim();
+
+      if (!intent || !contact) {
         forgeSubmitBtn.textContent = 'Incomplete';
         forgeSubmitBtn.style.borderColor = '#8B4513';
         setTimeout(function() {
           forgeSubmitBtn.textContent = 'Submit';
           forgeSubmitBtn.style.borderColor = '';
         }, 2000);
+        return;
       }
+
+      // Disable immediately to prevent double-submit
+      forgeSubmitBtn.disabled = true;
+      forgeSubmitBtn.textContent = 'Recording...';
+
+      fetch('/api/forge/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent: intent, contact: contact })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            hapticPulse();
+
+            // Update the count display with the live value from the server
+            if (typeof data.remaining === 'number') {
+              setCountDisplay(data.remaining);
+            }
+
+            if (data.remaining <= 0) {
+              freezeForge(forgeSubmitBtn);
+            } else {
+              forgeSubmitBtn.textContent = 'Received';
+              forgeSubmitBtn.style.borderColor = 'var(--color-accent)';
+              forgeSubmitBtn.style.color = 'var(--color-accent)';
+            }
+          } else {
+            // Server-side rejection
+            forgeSubmitBtn.disabled = false;
+            forgeSubmitBtn.textContent = 'Submit';
+            forgeSubmitBtn.style.borderColor = '';
+            forgeSubmitBtn.style.color = '';
+          }
+        })
+        .catch(function() {
+          // Network error — re-enable without changing the count
+          forgeSubmitBtn.disabled = false;
+          forgeSubmitBtn.textContent = 'Submit';
+        });
     });
   }
 
