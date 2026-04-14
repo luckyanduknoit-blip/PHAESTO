@@ -254,18 +254,17 @@
       setCountDisplay(_forgeCountCache);
       return;
     }
-
-    fetch('/api/forge/count', { method: 'GET', headers: { 'Accept': 'application/json' } })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (typeof data.remaining === 'number') {
-          setCountDisplay(data.remaining);
-        }
-      })
-      .catch(function() {
-        // Silent fail — ledger stays at last known value (412 default in HTML)
-      });
-  }
+var STEIN_URL = 'https://api.steinhq.com/v1/storages/69dde2243807a370b048ce72?offset=0&limit=1';
+    fetch(STEIN_URL, { method: 'GET' })
+  .then(function(r) { return r.json(); })
+  .then(function(rows) {
+    if (!rows || !rows[0]) return;
+    var val = parseInt(rows[0]['Remaining'], 10);
+    if (!isNaN(val) && val >= 0) setCountDisplay(val);
+  })
+  .catch(function() {
+    // Silent fail — static default holds
+  });
 
   function initForge() {
     var forgeSubmitBtn = document.getElementById('forge-submit-btn');
