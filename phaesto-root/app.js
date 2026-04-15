@@ -222,25 +222,17 @@
 
 
   // =============================================
-  // THE FORGE — Live Counter + Real Submit
+  // THE FORGE — Live Counter (Supabase) + Real Submit
   // =============================================
 
-  // SteinHQ → Google Sheets bridge
-  // Column header in Sheet must be exactly: Remaining
-  var STEIN_URL = 'https://api.steinhq.com/v1/storages/69dde2243807a370b048ce72/Sheet1?offset=0&limit=1';
-
-  // Cached count so we don't re-fetch on re-visits within the same session
-  var _forgeCountCache = null;
+  // Never caches across sessions — always fetches fresh from Supabase on page visit
+  // so the count reflects all submissions across all users in real time.
 
   function setCountDisplay(remaining) {
     var countEl = document.getElementById('forge-count');
     var submitBtn = document.getElementById('forge-submit-btn');
     if (!countEl) return;
-
-    // Immutable ledger feel — no transition, just set it
     countEl.textContent = remaining;
-    _forgeCountCache = remaining;
-
     if (remaining <= 0 && submitBtn) {
       freezeForge(submitBtn);
     }
@@ -253,21 +245,16 @@
   }
 
   function fetchForgeCount() {
-    // Use cached value if already fetched this session
-    if (_forgeCountCache !== null) {
-      setCountDisplay(_forgeCountCache);
-      return;
-    }
-
-    fetch(STEIN_URL, { method: 'GET' })
+    // Always fetch live from the server — Supabase is the single source of truth
+    fetch('/api/forge/count', { method: 'GET' })
       .then(function(r) { return r.json(); })
-      .then(function(rows) {
-        if (!rows || !rows[0]) return;
-        var val = parseInt(rows[0]['Remaining'], 10);
-        if (!isNaN(val) && val >= 0) setCountDisplay(val);
+      .then(function(data) {
+        if (typeof data.remaining === 'number' && data.remaining >= 0) {
+          setCountDisplay(data.remaining);
+        }
       })
       .catch(function() {
-        // Silent fail — HTML default holds, user never sees 0 or blank
+        // Silent fail — HTML default holds
       });
   }
 
@@ -276,7 +263,7 @@
     if (!forgeSubmitBtn || forgeSubmitBtn._bound) return;
     forgeSubmitBtn._bound = true;
 
-    // Fetch live count on every Forge page visit
+    // Always fetch the live count when the Forge page is visited
     fetchForgeCount();
 
     forgeSubmitBtn.addEventListener('click', function() {
@@ -288,6 +275,17 @@
 
       if (!intent || !contact) {
         forgeSubmitBtn.textContent = 'Incomplete';
+        forgeSubmitBtn.style.borderColor = '#8B4513';
+        setTimeout(function() {
+          forgeSubmitBtn.textContent = 'Submit';
+          forgeSubmitBtn.style.borderColor = '';
+        }, 2000);
+        return;
+      }
+
+      // Basic email validation
+      if (!contact.includes('@') || !contact.includes('.')) {
+        forgeSubmitBtn.textContent = 'Enter a valid email';
         forgeSubmitBtn.style.borderColor = '#8B4513';
         setTimeout(function() {
           forgeSubmitBtn.textContent = 'Submit';
@@ -310,7 +308,7 @@
           if (data.success) {
             hapticPulse();
 
-            // Update the count display with the live value from the server
+            // Update the count display with the live value returned from the server
             if (typeof data.remaining === 'number') {
               setCountDisplay(data.remaining);
             }
@@ -331,7 +329,7 @@
           }
         })
         .catch(function() {
-          // Network error — re-enable without changing the count
+          // Network error — re-enable
           forgeSubmitBtn.disabled = false;
           forgeSubmitBtn.textContent = 'Submit';
         });
