@@ -739,18 +739,81 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
 }
 
 .forge-counter {
-  font-family: var(--font-display);
-  font-size: var(--text-xs);
-  letter-spacing: 0.4em;
-  text-transform: uppercase;
-  color: var(--color-gold);
   margin-bottom: var(--space-10);
+  display: flex;
+  justify-content: center;
 }
 
-.forge-counter .count {
-  font-size: var(--text-lg);
-  font-weight: 600;
+/* --- Seat badge: 500/N --- */
+.forge-seat-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid rgba(201, 169, 110, 0.2);
+  padding: var(--space-4) var(--space-8);
+  position: relative;
+}
+
+.forge-seat-badge::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--color-gold), transparent);
+  opacity: 0.4;
+}
+
+.forge-seat-label {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
+.forge-seat-numbers {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  line-height: 1;
+}
+
+.forge-seat-remaining {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 500;
   color: var(--color-text);
+  letter-spacing: 0.05em;
+  transition: color 0.4s var(--ease-out);
+}
+
+.forge-seat-divider {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  color: var(--color-text-faint);
+  font-weight: 300;
+}
+
+.forge-seat-total {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 300;
+  color: var(--color-text-faint);
+  letter-spacing: 0.05em;
+}
+
+/* Pulse the remaining number once updated */
+@keyframes seat-pulse {
+  0%   { color: var(--color-gold); }
+  100% { color: var(--color-text); }
+}
+
+.forge-seat-remaining.updated {
+  animation: seat-pulse 1.2s var(--ease-out) forwards;
 }
 
 .forge-questions {
