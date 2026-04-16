@@ -232,7 +232,13 @@
     var countEl = document.getElementById('forge-count');
     var submitBtn = document.getElementById('forge-submit-btn');
     if (!countEl) return;
+
+    // Remove class, force reflow, re-add to restart the gold pulse animation
+    countEl.classList.remove('updated');
+    void countEl.offsetWidth;
     countEl.textContent = remaining;
+    countEl.classList.add('updated');
+
     if (remaining <= 0 && submitBtn) {
       freezeForge(submitBtn);
     }
