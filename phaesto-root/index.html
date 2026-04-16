@@ -339,8 +339,16 @@
         <div class="section-label reveal">The Forge</div>
         <h2 class="section-title reveal">Application</h2>
 
-        <div class="forge-counter reveal">
-          <span class="count" id="forge-count">500</span> remain
+        <!-- SEAT COUNTER BADGE -->
+        <div class="forge-counter reveal" aria-live="polite" aria-label="Available seats">
+          <div class="forge-seat-badge">
+            <span class="forge-seat-label">seats remaining</span>
+            <div class="forge-seat-numbers">
+              <span class="forge-seat-remaining" id="forge-count">—</span>
+              <span class="forge-seat-divider">/</span>
+              <span class="forge-seat-total">500</span>
+            </div>
+          </div>
         </div>
 
         <div class="forge-questions">
