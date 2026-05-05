@@ -1,0 +1,32 @@
+# robots.txt — Phaesto Atelier
+# We want AI crawlers and search engines to read everything.
+
+User-agent: *
+Allow: /
+
+# Explicitly allow all major AI crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://phaesto.com/sitemap.xml
