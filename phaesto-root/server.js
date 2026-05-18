@@ -12,6 +12,7 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const STATIC_DIR = path.resolve(__dirname);
+const ADMIN_DIR = path.join(STATIC_DIR, 'admin');
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://txepvzhmllhxpqeboodi.supabase.co',
@@ -22,6 +23,15 @@ const supabase = createClient(
 app.use(cors());
 app.use(express.json());
 
+// =============================================
+// ADMIN ROUTES — must be FIRST before any static/SPA
+// =============================================
+app.get('/admin/send.html', (req, res) => {
+  res.sendFile(path.join(ADMIN_DIR, 'send.html'));
+});
+app.use('/admin', express.static(ADMIN_DIR));
+app.use('/admin', require('./routes/sendAcceptance'));
+
 // --- Diagnostic route ---
 app.get('/api/ping', async (req, res) => {
   const results = {};
@@ -30,6 +40,8 @@ app.get('/api/ping', async (req, res) => {
     ? process.env.SUPABASE_SERVICE_KEY.slice(0, 12) + '...'
     : 'MISSING';
   results.jwt_secret = process.env.JWT_SECRET ? 'set' : 'MISSING';
+  results.resend_key = process.env.RESEND_API_KEY ? 'set' : 'MISSING';
+  results.admin_key = process.env.ADMIN_SECRET_KEY ? 'set' : 'MISSING';
   const { data: pieces, error: pErr } = await supabase.from('pieces').select('piece_id').limit(5);
   results.pieces_query = pErr ? ('ERROR: ' + pErr.message) : (pieces.map(p => p.piece_id));
   const { data: owners, error: oErr } = await supabase.from('ownership').select('piece_id, owner_name, is_current_owner').limit(5);
@@ -41,7 +53,6 @@ app.get('/api/ping', async (req, res) => {
 // FORGE LEDGER ROUTES
 // =============================================
 
-// GET /api/forge/count
 app.get('/api/forge/count', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -56,33 +67,18 @@ app.get('/api/forge/count', async (req, res) => {
   }
 });
 
-// POST /api/forge/submit
 app.post('/api/forge/submit', async (req, res) => {
   try {
     const { intent, contact } = req.body;
-
     if (!intent || !intent.trim() || !contact || !contact.trim()) {
       return res.status(400).json({ error: 'missing_fields' });
     }
-
-    const { data: slotData, error: slotError } = await supabase
-      .rpc('claim_forge_slot');
-
+    const { data: slotData, error: slotError } = await supabase.rpc('claim_forge_slot');
     if (slotError) {
       return res.status(500).json({ error: 'slot_claim_failed', detail: slotError.message });
     }
-
     const newRemaining = slotData;
-    const isForge = newRemaining !== null;
-
-    const { data: counterCheck } = await supabase
-      .from('forge_counter')
-      .select('current_remaining')
-      .eq('id', 1)
-      .single();
-
     const slotNumber = 500 - newRemaining;
-
     const { data: appData, error: appError } = await supabase
       .from('applications')
       .insert({
@@ -99,46 +95,26 @@ app.post('/api/forge/submit', async (req, res) => {
       })
       .select('id')
       .single();
-
-    if (appError) {
-      console.error('Application insert error:', appError.message);
-    }
-
+    if (appError) console.error('Application insert error:', appError.message);
     const webhookUrl = process.env.FORGE_WEBHOOK_URL;
     if (webhookUrl) {
-      const webhookPayload = {
-        source: 'phaesto_forge',
-        event: 'new_application',
-        slot_number: slotNumber,
-        remaining_after: newRemaining,
-        intent: intent.trim(),
-        contact: contact.trim(),
-        submitted_at: new Date().toISOString(),
-        application_id: appData ? appData.id : null
-      };
-
       fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(webhookPayload)
-      }).then(async (r) => {
+        body: JSON.stringify({
+          source: 'phaesto_forge', event: 'new_application',
+          slot_number: slotNumber, remaining_after: newRemaining,
+          intent: intent.trim(), contact: contact.trim(),
+          submitted_at: new Date().toISOString(),
+          application_id: appData ? appData.id : null
+        })
+      }).then(async () => {
         if (appData && appData.id) {
-          await supabase
-            .from('applications')
-            .update({ webhook_fired: true })
-            .eq('id', appData.id);
+          await supabase.from('applications').update({ webhook_fired: true }).eq('id', appData.id);
         }
-      }).catch((err) => {
-        console.error('Webhook fire failed:', err.message);
-      });
+      }).catch(err => console.error('Webhook fire failed:', err.message));
     }
-
-    return res.json({
-      success: true,
-      remaining: newRemaining,
-      slot: slotNumber
-    });
-
+    return res.json({ success: true, remaining: newRemaining, slot: slotNumber });
   } catch (err) {
     console.error('Forge submit error:', err.message);
     return res.status(500).json({ error: 'server_error', detail: err.message });
@@ -149,139 +125,53 @@ app.post('/api/forge/submit', async (req, res) => {
 // PIECE / OWNERSHIP ROUTES
 // =============================================
 
-// GET /api/piece/:token
 app.get('/api/piece/:token', async (req, res) => {
   try {
     const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
     const { piece_id } = decoded;
-
-    const { data: piece, error: pieceErr } = await supabase
-      .from('pieces')
-      .select('*')
-      .eq('piece_id', piece_id)
-      .single();
-
-    if (pieceErr || !piece) {
-      return res.status(404).json({ error: 'piece_not_found', detail: pieceErr ? pieceErr.message : null });
-    }
-
-    const { data: owner, error: ownerErr } = await supabase
-      .from('ownership')
-      .select('owner_name, claimed_at')
-      .eq('piece_id', piece_id)
-      .eq('is_current_owner', true)
-      .single();
-
-    if (ownerErr || !owner) {
-      return res.status(404).json({ error: 'owner_not_found', detail: ownerErr ? ownerErr.message : null });
-    }
-
-    const { data: transferLog } = await supabase
-      .from('transfer_log')
-      .select('*')
-      .eq('piece_id', piece_id)
-      .order('transferred_at', { ascending: false });
-
-    return res.json({
-      piece,
-      owner: { name: owner.owner_name, claimed_at: owner.claimed_at },
-      transferLog: transferLog || []
-    });
+    const { data: piece, error: pieceErr } = await supabase.from('pieces').select('*').eq('piece_id', piece_id).single();
+    if (pieceErr || !piece) return res.status(404).json({ error: 'piece_not_found', detail: pieceErr ? pieceErr.message : null });
+    const { data: owner, error: ownerErr } = await supabase.from('ownership').select('owner_name, claimed_at').eq('piece_id', piece_id).eq('is_current_owner', true).single();
+    if (ownerErr || !owner) return res.status(404).json({ error: 'owner_not_found', detail: ownerErr ? ownerErr.message : null });
+    const { data: transferLog } = await supabase.from('transfer_log').select('*').eq('piece_id', piece_id).order('transferred_at', { ascending: false });
+    return res.json({ piece, owner: { name: owner.owner_name, claimed_at: owner.claimed_at }, transferLog: transferLog || [] });
   } catch (err) {
     return res.status(401).json({ error: 'invalid_token', detail: err.message });
   }
 });
 
-// POST /api/transfer/initiate
 app.post('/api/transfer/initiate', async (req, res) => {
   try {
     const { token, seller_email } = req.body;
-    if (!token || !seller_email) {
-      return res.status(400).json({ error: 'missing_fields' });
-    }
+    if (!token || !seller_email) return res.status(400).json({ error: 'missing_fields' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { piece_id } = decoded;
-    const { data: ownership, error: ownerErr } = await supabase
-      .from('ownership')
-      .select('*')
-      .eq('piece_id', piece_id)
-      .eq('is_current_owner', true)
-      .single();
-    if (ownerErr || !ownership) {
-      return res.status(404).json({ error: 'ownership_not_found' });
-    }
-    if (ownership.owner_email !== seller_email) {
-      return res.status(403).json({ error: 'email_mismatch' });
-    }
+    const { data: ownership, error: ownerErr } = await supabase.from('ownership').select('*').eq('piece_id', piece_id).eq('is_current_owner', true).single();
+    if (ownerErr || !ownership) return res.status(404).json({ error: 'ownership_not_found' });
+    if (ownership.owner_email !== seller_email) return res.status(403).json({ error: 'email_mismatch' });
     const transfer_code = crypto.randomBytes(4).toString('hex').toUpperCase();
     const transfer_code_expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-    const { error: updateErr } = await supabase
-      .from('ownership')
-      .update({ transfer_code, transfer_code_expires_at })
-      .eq('id', ownership.id);
-    if (updateErr) {
-      return res.status(500).json({ error: 'update_failed' });
-    }
+    const { error: updateErr } = await supabase.from('ownership').update({ transfer_code, transfer_code_expires_at }).eq('id', ownership.id);
+    if (updateErr) return res.status(500).json({ error: 'update_failed' });
     return res.json({ transfer_code });
   } catch (err) {
     return res.status(401).json({ error: 'invalid_token' });
   }
 });
 
-// POST /api/transfer/claim
 app.post('/api/transfer/claim', async (req, res) => {
   try {
     const { transfer_code, new_owner_name, new_owner_email } = req.body;
-    if (!transfer_code || !new_owner_name || !new_owner_email) {
-      return res.status(400).json({ error: 'missing_fields' });
-    }
-    const { data: ownership, error: findErr } = await supabase
-      .from('ownership')
-      .select('*')
-      .eq('transfer_code', transfer_code)
-      .eq('is_current_owner', true)
-      .gt('transfer_code_expires_at', new Date().toISOString())
-      .single();
-    if (findErr || !ownership) {
-      return res.status(400).json({ error: 'invalid_or_expired_code' });
-    }
-    const new_token = jwt.sign(
-      { piece_id: ownership.piece_id, token_id: uuidv4() },
-      process.env.JWT_SECRET
-    );
-    const { error: logErr } = await supabase
-      .from('transfer_log')
-      .insert({
-        piece_id: ownership.piece_id,
-        from_owner_email: ownership.owner_email,
-        to_owner_email: new_owner_email
-      });
-    if (logErr) {
-      return res.status(500).json({ error: 'log_failed' });
-    }
-    const { error: deactivateErr } = await supabase
-      .from('ownership')
-      .update({
-        is_current_owner: false,
-        transfer_code: null,
-        transfer_code_expires_at: null
-      })
-      .eq('id', ownership.id);
-    if (deactivateErr) {
-      return res.status(500).json({ error: 'deactivate_failed' });
-    }
-    const { error: insertErr } = await supabase
-      .from('ownership')
-      .insert({
-        piece_id: ownership.piece_id,
-        owner_name: new_owner_name,
-        owner_email: new_owner_email,
-        nfc_token: new_token,
-        is_current_owner: true
-      });
-    if (insertErr) {
-      return res.status(500).json({ error: 'insert_failed' });
-    }
+    if (!transfer_code || !new_owner_name || !new_owner_email) return res.status(400).json({ error: 'missing_fields' });
+    const { data: ownership, error: findErr } = await supabase.from('ownership').select('*').eq('transfer_code', transfer_code).eq('is_current_owner', true).gt('transfer_code_expires_at', new Date().toISOString()).single();
+    if (findErr || !ownership) return res.status(400).json({ error: 'invalid_or_expired_code' });
+    const new_token = jwt.sign({ piece_id: ownership.piece_id, token_id: uuidv4() }, process.env.JWT_SECRET);
+    const { error: logErr } = await supabase.from('transfer_log').insert({ piece_id: ownership.piece_id, from_owner_email: ownership.owner_email, to_owner_email: new_owner_email });
+    if (logErr) return res.status(500).json({ error: 'log_failed' });
+    const { error: deactivateErr } = await supabase.from('ownership').update({ is_current_owner: false, transfer_code: null, transfer_code_expires_at: null }).eq('id', ownership.id);
+    if (deactivateErr) return res.status(500).json({ error: 'deactivate_failed' });
+    const { error: insertErr } = await supabase.from('ownership').insert({ piece_id: ownership.piece_id, owner_name: new_owner_name, owner_email: new_owner_email, nfc_token: new_token, is_current_owner: true });
+    if (insertErr) return res.status(500).json({ error: 'insert_failed' });
     return res.json({ new_token, piece_id: ownership.piece_id });
   } catch (err) {
     return res.status(500).json({ error: 'server_error' });
@@ -289,48 +179,41 @@ app.post('/api/transfer/claim', async (req, res) => {
 });
 
 // =============================================
-// ACCEPTANCE EMAIL ROUTE
+// STATIC + SPA FALLBACK — must be LAST
 // =============================================
-app.use('/admin', express.static(path.join(STATIC_DIR, 'admin')));
-app.use('/admin', require('./routes/sendAcceptance'));
-
-// Static files
 app.use(express.static(STATIC_DIR, {
   extensions: ['html'],
   maxAge: '1h',
   fallthrough: true
 }));
 
-// Verify route
 app.get('/verify/*', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'verify.html'));
 });
 
-// Ledger route
 app.get('/ledger', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'ledger.html'));
 });
 
-// SPA fallback
 app.get('*', (req, res) => {
   const staticExt = /\.(js|css|json|map|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot|mp4|webm|pdf)$/i;
-  if (staticExt.test(req.path)) {
-    return res.status(404).end();
-  }
+  if (staticExt.test(req.path)) return res.status(404).end();
   res.sendFile(path.join(STATIC_DIR, 'index.html'));
 });
 
 app.listen(PORT, () => {
   console.log(`Ph\u0101esto Atelier running on port ${PORT}`);
   console.log(`STATIC_DIR: ${STATIC_DIR}`);
+  console.log(`ADMIN_DIR: ${ADMIN_DIR}`);
+  console.log(`RESEND_API_KEY: ${process.env.RESEND_API_KEY ? 'set' : 'MISSING'}`);
+  console.log(`ADMIN_SECRET_KEY: ${process.env.ADMIN_SECRET_KEY ? 'set' : 'MISSING'}`);
   try {
     const files = fs.readdirSync(STATIC_DIR);
     console.log(`Files (${files.length}):`, files.join(', '));
-    const assetsPath = path.join(STATIC_DIR, 'assets');
-    if (fs.existsSync(assetsPath)) {
-      console.log(`assets/:`, fs.readdirSync(assetsPath).join(', '));
+    if (fs.existsSync(ADMIN_DIR)) {
+      console.log(`admin/:`, fs.readdirSync(ADMIN_DIR).join(', '));
     } else {
-      console.log('WARNING: assets/ not found');
+      console.log('WARNING: admin/ folder not found at', ADMIN_DIR);
     }
   } catch (e) {
     console.error('Could not read static dir:', e.message);
