@@ -17,6 +17,13 @@
       .body-text   { font-size: 14px !important; }
       .cta-btn     { padding: 14px 28px !important; font-size: 11px !important; }
     }
+    @media (prefers-color-scheme: light) {
+      body         { background-color: #0a0a0a !important; }
+      .outer-wrap  { background-color: #0a0a0a !important; }
+      .outer-cell  { background-color: #0a0a0a !important; }
+      .email-card  { background-color: #111111 !important; border-color: #252525 !important; }
+      .card-header { border-color: #1e1e1e !important; }
+    }
   </style>
 </head>
 <body style="margin:0;padding:0;background-color:#0a0a0a;font-family:'Georgia',serif;-webkit-text-size-adjust:100%;">
@@ -24,7 +31,7 @@
   <table class="outer-wrap" width="100%" cellpadding="0" cellspacing="0" border="0"
          style="background-color:#0a0a0a;padding:48px 16px;">
     <tr>
-      <td align="center">
+      <td class="outer-cell" align="center" style="background-color:#0a0a0a;">
 
         <table class="email-card" width="560" cellpadding="0" cellspacing="0" border="0"
                style="max-width:560px;width:100%;background-color:#111111;border:1px solid #252525;">
