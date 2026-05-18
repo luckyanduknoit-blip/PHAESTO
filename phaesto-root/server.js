@@ -41,7 +41,7 @@ app.get('/api/ping', async (req, res) => {
 // FORGE LEDGER ROUTES
 // =============================================
 
-// GET /api/forge/count — returns the current remaining count
+// GET /api/forge/count
 app.get('/api/forge/count', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -56,7 +56,7 @@ app.get('/api/forge/count', async (req, res) => {
   }
 });
 
-// POST /api/forge/submit — saves application, atomically decrements counter, fires webhook
+// POST /api/forge/submit
 app.post('/api/forge/submit', async (req, res) => {
   try {
     const { intent, contact } = req.body;
@@ -65,7 +65,6 @@ app.post('/api/forge/submit', async (req, res) => {
       return res.status(400).json({ error: 'missing_fields' });
     }
 
-    // 1. Atomically claim a slot (returns new remaining, or 0 if cold)
     const { data: slotData, error: slotError } = await supabase
       .rpc('claim_forge_slot');
 
@@ -76,21 +75,14 @@ app.post('/api/forge/submit', async (req, res) => {
     const newRemaining = slotData;
     const isForge = newRemaining !== null;
 
-    // If counter was already 0 before this call, reject
-    // (claim_forge_slot only decrements if > 0, so if it returned the same 0 we check)
     const { data: counterCheck } = await supabase
       .from('forge_counter')
       .select('current_remaining')
       .eq('id', 1)
       .single();
 
-    // If the slot was not actually claimed (remaining didn't change from 0), stop.
-    // We detect this by checking if remaining == 0 AND slotData == 0 meaning it was already 0.
-    // Since claim_forge_slot returns GREATEST(remaining-1, 0), if it was already 0 it stays 0.
-    // We use a second check: compare pre-call vs post-call indirectly via the slot_number assignment.
-    const slotNumber = 500 - newRemaining; // slot position claimed (1-based)
+    const slotNumber = 500 - newRemaining;
 
-    // 2. Insert application record
     const { data: appData, error: appError } = await supabase
       .from('applications')
       .insert({
@@ -110,10 +102,8 @@ app.post('/api/forge/submit', async (req, res) => {
 
     if (appError) {
       console.error('Application insert error:', appError.message);
-      // Still return success with the slot count — don't block the user
     }
 
-    // 3. Fire webhook to Make.com / Zapier
     const webhookUrl = process.env.FORGE_WEBHOOK_URL;
     if (webhookUrl) {
       const webhookPayload = {
@@ -127,13 +117,11 @@ app.post('/api/forge/submit', async (req, res) => {
         application_id: appData ? appData.id : null
       };
 
-      // Fire-and-forget — don't await, never block the response
       fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(webhookPayload)
       }).then(async (r) => {
-        // Mark webhook as fired if app record exists
         if (appData && appData.id) {
           await supabase
             .from('applications')
@@ -300,6 +288,12 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
+// =============================================
+// ACCEPTANCE EMAIL ROUTE
+// =============================================
+app.use('/admin', express.static(path.join(STATIC_DIR, 'admin')));
+app.use('/admin', require('./routes/sendAcceptance'));
+
 // Static files
 app.use(express.static(STATIC_DIR, {
   extensions: ['html'],
@@ -307,12 +301,12 @@ app.use(express.static(STATIC_DIR, {
   fallthrough: true
 }));
 
-// Verify route → always serve verify.html
+// Verify route
 app.get('/verify/*', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'verify.html'));
 });
 
-// Ledger route → always serve ledger.html
+// Ledger route
 app.get('/ledger', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'ledger.html'));
 });
@@ -327,7 +321,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Phāesto Atelier running on port ${PORT}`);
+  console.log(`Ph\u0101esto Atelier running on port ${PORT}`);
   console.log(`STATIC_DIR: ${STATIC_DIR}`);
   try {
     const files = fs.readdirSync(STATIC_DIR);
