@@ -3,67 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="x-apple-disable-message-reformatting"/>
   <title>Phaesto Atelier — Private Acquisition Confirmation</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .outer-wrap  { padding: 24px 12px !important; }
+      .email-card  { width: 100% !important; }
+      .card-header { padding: 24px 24px 20px !important; }
+      .card-body   { padding: 36px 24px 32px !important; }
+      .card-footer { padding: 20px 24px 28px !important; }
+      .card-divider{ padding: 0 24px !important; }
+      .headline    { font-size: 20px !important; }
+      .body-text   { font-size: 14px !important; }
+      .cta-btn     { padding: 14px 28px !important; font-size: 11px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a0a;font-family:'Georgia',serif;">
+<body style="margin:0;padding:0;background-color:#0a0a0a;font-family:'Georgia',serif;-webkit-text-size-adjust:100%;">
 
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a0a0a;padding:48px 16px;">
+  <table class="outer-wrap" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color:#0a0a0a;padding:48px 16px;">
     <tr>
       <td align="center">
 
-        <table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background-color:#111111;border:1px solid #252525;">
+        <table class="email-card" width="560" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:560px;width:100%;background-color:#111111;border:1px solid #252525;">
 
           <!-- Header -->
           <tr>
-            <td style="border-bottom:1px solid #1e1e1e;padding:32px 48px 28px;">
+            <td class="card-header" style="border-bottom:1px solid #1e1e1e;padding:32px 48px 28px;">
               <p style="margin:0;font-family:'Georgia',serif;font-size:11px;letter-spacing:0.35em;text-transform:uppercase;color:#5a5a5a;">Phaesto Atelier</p>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="padding:52px 48px 40px;">
+            <td class="card-body" style="padding:52px 48px 40px;">
 
-              <p style="margin:0 0 32px 0;font-family:'Georgia',serif;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:#3a3a3a;">Private Correspondence</p>
+              <p style="margin:0 0 32px 0;font-family:'Georgia',serif;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#3a3a3a;">Private Correspondence</p>
 
-              <h1 style="margin:0 0 28px 0;font-family:'Georgia',serif;font-size:22px;font-weight:400;line-height:1.45;letter-spacing:0.02em;color:#e8e4dc;">
-                Your acquisition has<br/>been accepted.
+              <h1 class="headline" style="margin:0 0 28px 0;font-family:'Georgia',serif;font-size:22px;font-weight:400;line-height:1.45;letter-spacing:0.02em;color:#e8e4dc;">
+                Your acquisition has been accepted.
               </h1>
 
               <table width="32" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
-                <tr><td style="height:1px;background-color:#2a2a2a;"></td></tr>
+                <tr><td style="height:1px;background-color:#2a2a2a;width:32px;">&nbsp;</td></tr>
               </table>
 
-              <p style="margin:0 0 16px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">Dear {{BUYER_NAME}},</p>
+              <p class="body-text" style="margin:0 0 16px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">Dear {{BUYER_NAME}},</p>
 
-              <p style="margin:0 0 24px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">
+              <p class="body-text" style="margin:0 0 24px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">
                 We are pleased to confirm that your request to acquire
                 <span style="color:#c8c4bc;font-style:italic;">{{PIECE_NAME}}</span>
                 has been reviewed and accepted.
               </p>
 
-              <p style="margin:0 0 40px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">
+              <p class="body-text" style="margin:0 0 40px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">
                 To complete your acquisition, please proceed through the secure link below. This link is issued exclusively for your reservation and will remain active for a limited period.
               </p>
 
               <!-- CTA -->
               <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:44px;">
                 <tr>
-                  <td style="background-color:#e8e4dc;">
+                  <td align="center" style="background-color:#e8e4dc;">
                     <a href="{{STRIPE_PAYMENT_URL}}"
+                       class="cta-btn"
                        target="_blank"
-                       style="display:inline-block;padding:14px 36px;font-family:'Georgia',serif;font-size:12px;letter-spacing:0.25em;text-transform:uppercase;color:#0a0a0a;text-decoration:none;font-weight:400;">
+                       style="display:inline-block;padding:14px 36px;font-family:'Georgia',serif;font-size:12px;letter-spacing:0.25em;text-transform:uppercase;color:#0a0a0a;text-decoration:none;font-weight:400;mso-padding-alt:0;">
                       Complete Acquisition
                     </a>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin:0 0 8px 0;font-family:'Georgia',serif;font-size:13px;line-height:1.75;color:#5a5a5a;">
+              <p class="body-text" style="margin:0 0 8px 0;font-family:'Georgia',serif;font-size:13px;line-height:1.75;color:#5a5a5a;">
                 Should you have any questions prior to completing your acquisition, you may reach us directly by replying to this correspondence.
               </p>
 
-              <p style="margin:0;font-family:'Georgia',serif;font-size:13px;line-height:1.75;color:#5a5a5a;">
+              <p class="body-text" style="margin:0;font-family:'Georgia',serif;font-size:13px;line-height:1.75;color:#5a5a5a;">
                 We look forward to welcoming this piece into your collection.
               </p>
 
@@ -72,16 +89,16 @@
 
           <!-- Divider -->
           <tr>
-            <td style="padding:0 48px;">
+            <td class="card-divider" style="padding:0 48px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="height:1px;background-color:#1e1e1e;"></td></tr>
+                <tr><td style="height:1px;background-color:#1e1e1e;">&nbsp;</td></tr>
               </table>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="padding:28px 48px 36px;">
+            <td class="card-footer" style="padding:28px 48px 36px;">
               <p style="margin:0 0 4px 0;font-family:'Georgia',serif;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#3a3a3a;">Phaesto Atelier</p>
               <p style="margin:0;font-family:'Georgia',serif;font-size:11px;color:#2e2e2e;letter-spacing:0.05em;">Private Acquisitions</p>
             </td>
