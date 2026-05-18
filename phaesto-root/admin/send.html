@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Phaesto — Send Acceptance</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --border: #252525; --border-2: #1e1e1e;
+      --text: #e8e4dc; --muted: #9a9690; --faint: #5a5a5a;
+      --accent: #e8e4dc; --btn-text: #0a0a0a;
+    }
+    body {
+      background: var(--bg); color: var(--text); font-family: 'Georgia', serif;
+      min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 32px 16px;
+    }
+    .card { width: 100%; max-width: 480px; background: var(--surface); border: 1px solid var(--border); }
+    .card-header { padding: 28px 36px 24px; border-bottom: 1px solid var(--border-2); }
+    .card-header p { font-size: 11px; letter-spacing: 0.35em; text-transform: uppercase; color: var(--faint); }
+    .card-header h1 { margin-top: 10px; font-size: 18px; font-weight: 400; letter-spacing: 0.02em; color: var(--text); }
+    .card-body { padding: 32px 36px; }
+    .lock-label { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; }
+    #send-screen { display: none; }
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
+    .field input {
+      width: 100%; background: #0e0e0e; border: 1px solid var(--border);
+      color: var(--text); font-family: 'Georgia', serif; font-size: 14px;
+      padding: 10px 12px; outline: none; transition: border-color 180ms;
+    }
+    .field input:focus { border-color: #3a3a3a; }
+    .field input::placeholder { color: #333333; }
+    .btn {
+      display: inline-block; width: 100%; background: var(--accent); color: var(--btn-text);
+      border: none; padding: 13px 24px; font-family: 'Georgia', serif;
+      font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase;
+      cursor: pointer; transition: opacity 180ms; margin-top: 8px;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .msg { margin-top: 16px; font-size: 12px; letter-spacing: 0.05em; line-height: 1.6; display: none; }
+    .msg.success { color: #6aaa88; display: block; }
+    .msg.error   { color: #c07070; display: block; }
+    .divider { height: 1px; background: var(--border-2); margin: 24px 0; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <p>Phaesto Atelier</p>
+    <h1>Send Acceptance</h1>
+  </div>
+  <div class="card-body">
+
+    <div id="lock-screen">
+      <p class="lock-label">Admin Key</p>
+      <div class="field" style="margin-bottom:0;">
+        <input id="admin-key-input" type="password" placeholder="Enter admin key" autocomplete="off"/>
+      </div>
+      <div class="divider"></div>
+      <button class="btn" onclick="unlock()">Continue</button>
+      <p id="lock-msg" class="msg"></p>
+    </div>
+
+    <div id="send-screen">
+      <div class="field">
+        <label for="buyer-name">Buyer Name</label>
+        <input id="buyer-name" type="text" placeholder="e.g. Aarav Shah"/>
+      </div>
+      <div class="field">
+        <label for="buyer-email">Buyer Email</label>
+        <input id="buyer-email" type="email" placeholder="buyer@example.com"/>
+      </div>
+      <div class="field">
+        <label for="piece-name">Piece Name</label>
+        <input id="piece-name" type="text" placeholder="e.g. Aurum Signet Ring No. 3"/>
+      </div>
+      <div class="field">
+        <label for="stripe-url">Stripe Payment Link</label>
+        <input id="stripe-url" type="url" placeholder="https://buy.stripe.com/..."/>
+      </div>
+      <button class="btn" id="send-btn" onclick="sendEmail()">Send Acceptance Email</button>
+      <p id="send-msg" class="msg"></p>
+    </div>
+
+  </div>
+</div>
+<script>
+  let adminKey = '';
+  function unlock() {
+    const val = document.getElementById('admin-key-input').value.trim();
+    if (!val) return showMsg('lock-msg', 'Please enter your admin key.', 'error');
+    adminKey = val;
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('send-screen').style.display = 'block';
+  }
+  document.getElementById('admin-key-input').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+  async function sendEmail() {
+    const buyerName        = document.getElementById('buyer-name').value.trim();
+    const buyerEmail       = document.getElementById('buyer-email').value.trim();
+    const pieceName        = document.getElementById('piece-name').value.trim();
+    const stripePaymentUrl = document.getElementById('stripe-url').value.trim();
+    if (!buyerName || !buyerEmail || !pieceName || !stripePaymentUrl)
+      return showMsg('send-msg', 'All fields are required.', 'error');
+    const btn = document.getElementById('send-btn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    clearMsg('send-msg');
+    try {
+      const res = await fetch('/admin/send-acceptance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+        body: JSON.stringify({ buyerName, buyerEmail, pieceName, stripePaymentUrl })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showMsg('send-msg', data.error || 'Send failed. Check server logs.', 'error');
+      } else {
+        showMsg('send-msg', `Sent to ${buyerEmail}. Resend ID: ${data.resendId}`, 'success');
+        ['buyer-name','buyer-email','piece-name','stripe-url'].forEach(id => document.getElementById(id).value = '');
+      }
+    } catch (err) {
+      showMsg('send-msg', 'Network error. Is your backend running?', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Send Acceptance Email';
+    }
+  }
+  function showMsg(id, text, type) { const el = document.getElementById(id); el.textContent = text; el.className = 'msg ' + type; }
+  function clearMsg(id) { const el = document.getElementById(id); el.textContent = ''; el.className = 'msg'; }
+</script>
+</body>
+</html>
