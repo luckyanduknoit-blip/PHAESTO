@@ -4,7 +4,6 @@
 User-agent: *
 Allow: /
 
-# Explicitly allow all major AI crawlers
 User-agent: GPTBot
 Allow: /
 
@@ -29,4 +28,4 @@ Allow: /
 User-agent: Bingbot
 Allow: /
 
-Sitemap: https://phaesto.com/sitemap.xml
+Sitemap: https://www.phaestoatelier.com/sitemap.xml
