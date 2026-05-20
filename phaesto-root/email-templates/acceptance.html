@@ -6,6 +6,7 @@
   <meta name="x-apple-disable-message-reformatting"/>
   <title>Phaesto Atelier — Private Acquisition Confirmation</title>
   <style>
+    /* Mobile */
     @media only screen and (max-width: 600px) {
       .outer-wrap  { padding: 24px 12px !important; }
       .email-card  { width: 100% !important; }
@@ -17,12 +18,45 @@
       .body-text   { font-size: 14px !important; }
       .cta-btn     { padding: 14px 28px !important; font-size: 11px !important; }
     }
+
+    /* Dark mode — keep original black aesthetic */
+    @media (prefers-color-scheme: dark) {
+      body            { background-color: #0a0a0a !important; }
+      .outer-wrap     { background-color: #0a0a0a !important; }
+      .outer-cell     { background-color: #0a0a0a !important; }
+      .email-card     { background-color: #111111 !important; border-color: #252525 !important; }
+      .card-header    { border-color: #1e1e1e !important; }
+      .label-text     { color: #5a5a5a !important; }
+      .private-label  { color: #3a3a3a !important; }
+      .headline       { color: #e8e4dc !important; }
+      .divider-line   { background-color: #2a2a2a !important; }
+      .body-text      { color: #9a9690 !important; }
+      .piece-name     { color: #c8c4bc !important; }
+      .cta-cell       { background-color: #e8e4dc !important; }
+      .cta-btn        { color: #0a0a0a !important; }
+      .section-divider{ background-color: #1e1e1e !important; }
+      .footer-name    { color: #3a3a3a !important; }
+      .footer-sub     { color: #2e2e2e !important; }
+    }
+
+    /* Light mode — warm parchment, still luxury */
     @media (prefers-color-scheme: light) {
-      body         { background-color: #0a0a0a !important; }
-      .outer-wrap  { background-color: #0a0a0a !important; }
-      .outer-cell  { background-color: #0a0a0a !important; }
-      .email-card  { background-color: #111111 !important; border-color: #252525 !important; }
-      .card-header { border-color: #1e1e1e !important; }
+      body            { background-color: #ede9e2 !important; }
+      .outer-wrap     { background-color: #ede9e2 !important; }
+      .outer-cell     { background-color: #ede9e2 !important; }
+      .email-card     { background-color: #faf8f5 !important; border-color: #dedad4 !important; }
+      .card-header    { border-color: #e5e1db !important; }
+      .label-text     { color: #9a9690 !important; }
+      .private-label  { color: #b8b4ae !important; }
+      .headline       { color: #1a1814 !important; }
+      .divider-line   { background-color: #dedad4 !important; }
+      .body-text      { color: #4a4540 !important; }
+      .piece-name     { color: #1a1814 !important; }
+      .cta-cell       { background-color: #0a0a0a !important; }
+      .cta-btn        { color: #f5f2ec !important; }
+      .section-divider{ background-color: #e5e1db !important; }
+      .footer-name    { color: #9a9690 !important; }
+      .footer-sub     { color: #b8b4ae !important; }
     }
   </style>
 </head>
@@ -39,7 +73,7 @@
           <!-- Header -->
           <tr>
             <td class="card-header" style="border-bottom:1px solid #1e1e1e;padding:32px 48px 28px;">
-              <p style="margin:0;font-family:'Georgia',serif;font-size:11px;letter-spacing:0.35em;text-transform:uppercase;color:#5a5a5a;">Phaesto Atelier</p>
+              <p class="label-text" style="margin:0;font-family:'Georgia',serif;font-size:11px;letter-spacing:0.35em;text-transform:uppercase;color:#5a5a5a;">Phaesto Atelier</p>
             </td>
           </tr>
 
@@ -47,21 +81,21 @@
           <tr>
             <td class="card-body" style="padding:52px 48px 40px;">
 
-              <p style="margin:0 0 32px 0;font-family:'Georgia',serif;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#3a3a3a;">Private Correspondence</p>
+              <p class="private-label" style="margin:0 0 32px 0;font-family:'Georgia',serif;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#3a3a3a;">Private Correspondence</p>
 
               <h1 class="headline" style="margin:0 0 28px 0;font-family:'Georgia',serif;font-size:22px;font-weight:400;line-height:1.45;letter-spacing:0.02em;color:#e8e4dc;">
                 Your acquisition has been accepted.
               </h1>
 
               <table width="32" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
-                <tr><td style="height:1px;background-color:#2a2a2a;width:32px;">&nbsp;</td></tr>
+                <tr><td class="divider-line" style="height:1px;background-color:#2a2a2a;width:32px;">&nbsp;</td></tr>
               </table>
 
               <p class="body-text" style="margin:0 0 16px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">Dear {{BUYER_NAME}},</p>
 
               <p class="body-text" style="margin:0 0 24px 0;font-family:'Georgia',serif;font-size:15px;line-height:1.8;color:#9a9690;">
                 We are pleased to confirm that your request to acquire
-                <span style="color:#c8c4bc;font-style:italic;">{{PIECE_NAME}}</span>
+                <span class="piece-name" style="color:#c8c4bc;font-style:italic;">{{PIECE_NAME}}</span>
                 has been reviewed and accepted.
               </p>
 
@@ -72,7 +106,7 @@
               <!-- CTA -->
               <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:44px;">
                 <tr>
-                  <td align="center" style="background-color:#e8e4dc;">
+                  <td class="cta-cell" align="center" style="background-color:#e8e4dc;">
                     <a href="{{STRIPE_PAYMENT_URL}}"
                        class="cta-btn"
                        target="_blank"
@@ -98,7 +132,7 @@
           <tr>
             <td class="card-divider" style="padding:0 48px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="height:1px;background-color:#1e1e1e;">&nbsp;</td></tr>
+                <tr><td class="section-divider" style="height:1px;background-color:#1e1e1e;">&nbsp;</td></tr>
               </table>
             </td>
           </tr>
@@ -106,8 +140,8 @@
           <!-- Footer -->
           <tr>
             <td class="card-footer" style="padding:28px 48px 36px;">
-              <p style="margin:0 0 4px 0;font-family:'Georgia',serif;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#3a3a3a;">Phaesto Atelier</p>
-              <p style="margin:0;font-family:'Georgia',serif;font-size:11px;color:#2e2e2e;letter-spacing:0.05em;">Private Acquisitions</p>
+              <p class="footer-name" style="margin:0 0 4px 0;font-family:'Georgia',serif;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#3a3a3a;">Phaesto Atelier</p>
+              <p class="footer-sub" style="margin:0;font-family:'Georgia',serif;font-size:11px;color:#2e2e2e;letter-spacing:0.05em;">Private Acquisitions</p>
             </td>
           </tr>
 
