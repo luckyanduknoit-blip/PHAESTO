@@ -116,7 +116,6 @@
   // SIGIL NAV TRIGGER
   // =============================================
   sigilTrigger.addEventListener('click', function() {
-    // Quick spin animation
     sigilTrigger.classList.add('spinning');
     setTimeout(function() {
       sigilTrigger.classList.remove('spinning');
@@ -133,7 +132,6 @@
     navIsOpen = true;
     navOverlay.classList.add('open');
     sigilTrigger.setAttribute('aria-expanded', 'true');
-    // Highlight current page
     navPageLinks.forEach(function(link) {
       link.classList.toggle('active', link.dataset.page === currentPage);
     });
@@ -145,7 +143,6 @@
     sigilTrigger.setAttribute('aria-expanded', 'false');
   }
 
-  // Close nav on Escape
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && navIsOpen) closeNav();
   });
@@ -167,21 +164,17 @@
   });
 
   function navigateTo(pageName) {
-    // Close nav first
     closeNav();
 
-    // Hide all pages
     var allPages = document.querySelectorAll('.page');
     allPages.forEach(function(p) {
       p.style.display = 'none';
       p.classList.remove('page-entering');
     });
 
-    // Show target page
     var targetEl = document.getElementById('page-' + pageName);
     if (targetEl) {
       targetEl.style.display = '';
-      // Small delay for transition to register
       requestAnimationFrame(function() {
         requestAnimationFrame(function() {
           targetEl.classList.add('page-entering');
@@ -189,12 +182,8 @@
       });
     }
 
-    // Scroll to top
     window.scrollTo(0, 0);
-
     currentPage = pageName;
-
-    // Re-init any page-specific JS
     initPageFeatures(pageName);
   }
 
@@ -237,28 +226,24 @@
 
   // =============================================
   // THE FORGE APPLICATION — LIVE PERSISTENT COUNTER
+  // Powered by Supabase Edge Function
   // =============================================
-  var TOTAL_SLOTS = 412;
-  var COUNT_NAMESPACE = 'phaesto';
-  var COUNT_KEY = 'forge-slots';
-  var COUNT_API = 'https://api.countapi.xyz';
+  var FORGE_API = 'https://txepvzhmllhxpqeboodi.supabase.co/functions/v1/forge-counter';
 
   function fetchForgeCount(callback) {
-    fetch(COUNT_API + '/get/' + COUNT_NAMESPACE + '/' + COUNT_KEY)
+    fetch(FORGE_API, { method: 'GET' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        var used = (data && data.value) ? data.value : 0;
-        callback(Math.max(TOTAL_SLOTS - used, 0));
+        callback(typeof data.remaining === 'number' ? data.remaining : null);
       })
       .catch(function() { callback(null); });
   }
 
   function decrementForgeCount(callback) {
-    fetch(COUNT_API + '/update/' + COUNT_NAMESPACE + '/' + COUNT_KEY + '?amount=1')
+    fetch(FORGE_API, { method: 'POST' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        var used = (data && data.value) ? data.value : 0;
-        callback(Math.max(TOTAL_SLOTS - used, 0));
+        callback(typeof data.remaining === 'number' ? data.remaining : null);
       })
       .catch(function() { callback(null); });
   }
@@ -267,7 +252,7 @@
     var forgeSubmitBtn = document.getElementById('forge-submit-btn');
     var forgeCount = document.getElementById('forge-count');
 
-    // Always fetch live count when forge page loads
+    // Fetch live count every time forge page is opened
     if (forgeCount) {
       forgeCount.textContent = '…';
       fetchForgeCount(function(remaining) {
@@ -302,7 +287,6 @@
     });
   }
 
-  // Init forge if it's somehow the starting page
   initForge();
 
 
