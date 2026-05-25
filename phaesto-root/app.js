@@ -236,13 +236,44 @@
 
 
   // =============================================
-  // THE FORGE APPLICATION
+  // THE FORGE APPLICATION — LIVE PERSISTENT COUNTER
   // =============================================
-  var currentCount = 412;
+  var TOTAL_SLOTS = 412;
+  var COUNT_NAMESPACE = 'phaesto';
+  var COUNT_KEY = 'forge-slots';
+  var COUNT_API = 'https://api.countapi.xyz';
+
+  function fetchForgeCount(callback) {
+    fetch(COUNT_API + '/get/' + COUNT_NAMESPACE + '/' + COUNT_KEY)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var used = (data && data.value) ? data.value : 0;
+        callback(Math.max(TOTAL_SLOTS - used, 0));
+      })
+      .catch(function() { callback(null); });
+  }
+
+  function decrementForgeCount(callback) {
+    fetch(COUNT_API + '/update/' + COUNT_NAMESPACE + '/' + COUNT_KEY + '?amount=1')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var used = (data && data.value) ? data.value : 0;
+        callback(Math.max(TOTAL_SLOTS - used, 0));
+      })
+      .catch(function() { callback(null); });
+  }
 
   function initForge() {
     var forgeSubmitBtn = document.getElementById('forge-submit-btn');
     var forgeCount = document.getElementById('forge-count');
+
+    // Always fetch live count when forge page loads
+    if (forgeCount) {
+      forgeCount.textContent = '…';
+      fetchForgeCount(function(remaining) {
+        if (remaining !== null) forgeCount.textContent = remaining;
+      });
+    }
 
     if (!forgeSubmitBtn || forgeSubmitBtn._bound) return;
     forgeSubmitBtn._bound = true;
@@ -257,8 +288,9 @@
         forgeSubmitBtn.style.color = 'var(--color-accent)';
         forgeSubmitBtn.disabled = true;
         hapticPulse();
-        currentCount--;
-        if (forgeCount) forgeCount.textContent = currentCount;
+        decrementForgeCount(function(remaining) {
+          if (forgeCount && remaining !== null) forgeCount.textContent = remaining;
+        });
       } else {
         forgeSubmitBtn.textContent = 'Incomplete';
         forgeSubmitBtn.style.borderColor = '#8B4513';
