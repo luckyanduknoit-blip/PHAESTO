@@ -66,7 +66,6 @@
           pageContainer.classList.add('revealed');
           sigilTrigger.classList.add('visible');
 
-          // Activate temple
           if (templeOverlay) templeOverlay.classList.add('active');
 
           setTimeout(function() {
@@ -225,8 +224,29 @@
 
 
   // =============================================
+  // CONTACT VALIDATION — email or phone
+  // =============================================
+  function isValidContact(val) {
+    var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    var phoneRe = /^[\+]?[\d\s\-\(\)]{7,15}$/;
+    return emailRe.test(val) || phoneRe.test(val);
+  }
+
+  function showSignalError(input, errorEl) {
+    errorEl.classList.add('visible');
+    input.classList.add('signal-invalid');
+    input.addEventListener('animationend', function() {
+      input.classList.remove('signal-invalid');
+    }, { once: true });
+  }
+
+  function clearSignalError(input, errorEl) {
+    errorEl.classList.remove('visible');
+  }
+
+
+  // =============================================
   // THE FORGE APPLICATION — LIVE PERSISTENT COUNTER
-  // Powered by Supabase Edge Function
   // =============================================
   var FORGE_API = 'https://txepvzhmllhxpqeboodi.supabase.co/functions/v1/forge-counter';
   var FORGE_SUBMIT_API = '/api/forge';
@@ -263,6 +283,8 @@
   function initForge() {
     var forgeSubmitBtn = document.getElementById('forge-submit-btn');
     var forgeCount = document.getElementById('forge-count');
+    var forgeQ2 = document.getElementById('forge-q2');
+    var signalError = document.getElementById('forge-signal-error');
 
     // Fetch live count every time forge page is opened
     if (forgeCount) {
@@ -272,12 +294,25 @@
       });
     }
 
+    // Clear error as user types
+    if (forgeQ2 && signalError) {
+      forgeQ2.addEventListener('input', function() {
+        clearSignalError(forgeQ2, signalError);
+      });
+    }
+
     if (!forgeSubmitBtn || forgeSubmitBtn._bound) return;
     forgeSubmitBtn._bound = true;
 
     forgeSubmitBtn.addEventListener('click', function() {
       var q1 = document.getElementById('forge-q1').value.trim();
-      var q2 = document.getElementById('forge-q2').value.trim();
+      var q2 = forgeQ2 ? forgeQ2.value.trim() : '';
+
+      // Validate contact field
+      if (q2 && !isValidContact(q2)) {
+        showSignalError(forgeQ2, signalError);
+        return;
+      }
 
       if (q1 && q2) {
         forgeSubmitBtn.textContent = 'Sending\u2026';

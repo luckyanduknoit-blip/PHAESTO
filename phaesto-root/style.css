@@ -329,7 +329,6 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
   min-height: 100vh;
 }
 
-/* Page transition */
 .page.page-entering {
   animation: page-enter 0.6s var(--ease-out) forwards;
 }
@@ -459,7 +458,7 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
   50% { opacity: 0.8; transform: scaleY(1); }
 }
 
-/* === SEALED / LOCKED TEASERS (Home page) === */
+/* === SEALED / LOCKED TEASERS === */
 .sealed-section {
   padding-bottom: var(--space-32);
 }
@@ -821,6 +820,42 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
 .forge-submit:hover {
   background: var(--color-gold);
   color: var(--color-bg);
+}
+
+/* === FORGE CONTACT SIGNAL ERROR === */
+.forge-signal-error {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-style: italic;
+  letter-spacing: 0.35em;
+  text-transform: lowercase;
+  color: var(--color-gold);
+  margin-top: var(--space-2);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition:
+    opacity 0.5s var(--ease-out),
+    transform 0.5s var(--ease-out);
+}
+
+.forge-signal-error.visible {
+  opacity: 0.55;
+  transform: translateY(0);
+}
+
+.forge-input.signal-invalid {
+  border-color: rgba(201, 169, 110, 0.4);
+  animation: signal-shake 0.45s var(--ease-out);
+}
+
+@keyframes signal-shake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-5px); }
+  40%  { transform: translateX(5px); }
+  60%  { transform: translateX(-3px); }
+  80%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
 }
 
 /* === FOOTER === */
