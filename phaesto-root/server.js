@@ -75,11 +75,11 @@ app.post('/api/forge', async (req, res) => {
     }
 
     const { error } = await supabase
-      .from('forge_applicants')
-      .insert({ devotion, contact });
+      .from('applicants')
+      .insert({ intent: devotion, contact: contact });
 
     if (error) {
-      console.error('Forge applicant insert error:', error);
+      console.error('Applicant insert error:', error);
       return res.status(500).json({ error: 'save_failed' });
     }
 
