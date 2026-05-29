@@ -65,6 +65,31 @@ app.get('/api/piece/:token', async (req, res) => {
   }
 });
 
+// POST /api/forge — Save forge applicant to Supabase
+app.post('/api/forge', async (req, res) => {
+  try {
+    const { devotion, contact } = req.body;
+
+    if (!devotion || !contact) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+
+    const { error } = await supabase
+      .from('forge_applicants')
+      .insert({ devotion, contact });
+
+    if (error) {
+      console.error('Forge applicant insert error:', error);
+      return res.status(500).json({ error: 'save_failed' });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Forge route error:', err);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // POST /api/transfer/initiate — Start ownership transfer
 app.post('/api/transfer/initiate', async (req, res) => {
   try {

@@ -35,13 +35,25 @@ CREATE TABLE transfer_log (
   transferred_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Table: forge_applicants
+CREATE TABLE forge_applicants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  devotion TEXT NOT NULL,
+  contact TEXT NOT NULL,
+  submitted_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Enable RLS on all tables
 ALTER TABLE pieces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ownership ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transfer_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE forge_applicants ENABLE ROW LEVEL SECURITY;
 
 -- pieces is publicly readable
 CREATE POLICY "pieces_public_read" ON pieces FOR SELECT USING (true);
 
 -- ownership and transfer_log: only service role can read (all reads are server-side)
 -- No policies for anon role = denied by default when RLS is enabled
+
+-- forge_applicants: only service role can insert/read
+-- No anon policies = denied by default when RLS is enabled

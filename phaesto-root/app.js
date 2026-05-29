@@ -229,6 +229,7 @@
   // Powered by Supabase Edge Function
   // =============================================
   var FORGE_API = 'https://txepvzhmllhxpqeboodi.supabase.co/functions/v1/forge-counter';
+  var FORGE_SUBMIT_API = '/api/forge';
 
   function fetchForgeCount(callback) {
     fetch(FORGE_API, { method: 'GET' })
@@ -248,13 +249,24 @@
       .catch(function() { callback(null); });
   }
 
+  function saveForgeApplicant(devotion, contact, callback) {
+    fetch(FORGE_SUBMIT_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ devotion: devotion, contact: contact })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) { callback(data.success === true, null); })
+      .catch(function(err) { callback(false, err); });
+  }
+
   function initForge() {
     var forgeSubmitBtn = document.getElementById('forge-submit-btn');
     var forgeCount = document.getElementById('forge-count');
 
     // Fetch live count every time forge page is opened
     if (forgeCount) {
-      forgeCount.textContent = '…';
+      forgeCount.textContent = '\u2026';
       fetchForgeCount(function(remaining) {
         if (remaining !== null) forgeCount.textContent = remaining;
       });
@@ -268,13 +280,27 @@
       var q2 = document.getElementById('forge-q2').value.trim();
 
       if (q1 && q2) {
-        forgeSubmitBtn.textContent = 'Received';
-        forgeSubmitBtn.style.borderColor = 'var(--color-accent)';
-        forgeSubmitBtn.style.color = 'var(--color-accent)';
+        forgeSubmitBtn.textContent = 'Sending\u2026';
         forgeSubmitBtn.disabled = true;
-        hapticPulse();
-        decrementForgeCount(function(remaining) {
-          if (forgeCount && remaining !== null) forgeCount.textContent = remaining;
+
+        saveForgeApplicant(q1, q2, function(success) {
+          if (success) {
+            forgeSubmitBtn.textContent = 'Received';
+            forgeSubmitBtn.style.borderColor = 'var(--color-accent)';
+            forgeSubmitBtn.style.color = 'var(--color-accent)';
+            hapticPulse();
+            decrementForgeCount(function(remaining) {
+              if (forgeCount && remaining !== null) forgeCount.textContent = remaining;
+            });
+          } else {
+            forgeSubmitBtn.textContent = 'Error — Try Again';
+            forgeSubmitBtn.style.borderColor = '#8B4513';
+            forgeSubmitBtn.disabled = false;
+            setTimeout(function() {
+              forgeSubmitBtn.textContent = 'Submit';
+              forgeSubmitBtn.style.borderColor = '';
+            }, 3000);
+          }
         });
       } else {
         forgeSubmitBtn.textContent = 'Incomplete';
