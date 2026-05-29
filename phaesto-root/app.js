@@ -224,12 +224,15 @@
 
 
   // =============================================
-  // CONTACT VALIDATION — email or phone
+  // CONTACT VALIDATION — email (@) or 10-11 digit phone
   // =============================================
   function isValidContact(val) {
+    // Email: must contain @
     var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    var phoneRe = /^[\+]?[\d\s\-\(\)]{7,15}$/;
-    return emailRe.test(val) || phoneRe.test(val);
+    // Phone: strip all spaces, dashes, parens, dots, leading + — must be exactly 10 or 11 digits
+    var digitsOnly = val.replace(/[\s\-\.\(\)\+]/g, '');
+    var phoneRe = /^\d{10,11}$/;
+    return emailRe.test(val) || phoneRe.test(digitsOnly);
   }
 
   function showSignalError(input, errorEl) {
@@ -294,7 +297,7 @@
       });
     }
 
-    // Clear error as user types
+    // Clear error only once user starts correcting their input
     if (forgeQ2 && signalError) {
       forgeQ2.addEventListener('input', function() {
         clearSignalError(forgeQ2, signalError);
@@ -308,7 +311,7 @@
       var q1 = document.getElementById('forge-q1').value.trim();
       var q2 = forgeQ2 ? forgeQ2.value.trim() : '';
 
-      // Validate contact field
+      // Only trigger error if they typed something invalid — not on empty
       if (q2 && !isValidContact(q2)) {
         showSignalError(forgeQ2, signalError);
         return;
