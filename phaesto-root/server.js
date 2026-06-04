@@ -75,7 +75,7 @@ app.post('/api/forge', async (req, res) => {
     }
 
     const { error } = await supabase
-      .from('applicants')
+      .from('applications')
       .insert({ intent: devotion, contact: contact });
 
     if (error) {
