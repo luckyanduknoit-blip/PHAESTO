@@ -641,7 +641,7 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
 }
 
 .altar-desc {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--text-base);
   color: var(--color-text-muted);
   line-height: 1.8;
@@ -667,67 +667,6 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
 
 @media (max-width: 768px) {
   .altar-price { opacity: 0; font-size: var(--text-xs); }
-}
-
-/* === THE MYTHOLOGY SECTION === */
-.mythology {
-  position: relative;
-  overflow: hidden;
-}
-
-.mythology-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-12);
-  max-width: var(--content-default);
-  margin-inline: auto;
-}
-
-@media (min-width: 768px) {
-  .mythology-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-16);
-  }
-}
-
-.mythology-block {
-  padding: var(--space-8);
-  border: 1px solid var(--color-border);
-  position: relative;
-}
-
-.mythology-block::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--color-accent), transparent);
-  opacity: 0.3;
-}
-
-.mythology-icon {
-  font-size: var(--text-xl);
-  margin-bottom: var(--space-4);
-  opacity: 0.6;
-}
-
-.mythology-heading {
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 400;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--color-text);
-  margin-bottom: var(--space-4);
-}
-
-.mythology-text {
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  color: var(--color-text-muted);
-  line-height: 1.9;
 }
 
 /* === THE FORGE APPLICATION === */
@@ -967,28 +906,46 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
   height: 100%;
 }
 
+/* === ABOUT PAGE === */
+.about-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.about-page .about-manifesto {
+  flex: 1;
+}
+
 /* === ABOUT — MANIFESTO === */
 .about-manifesto {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
   gap: 0;
   max-width: 560px;
+  width: 100%;
   margin-inline: auto;
   padding: clamp(var(--space-16), 12vw, var(--space-32)) var(--space-6);
-  min-height: 80vh;
-  justify-content: center;
+  min-height: calc(100vh - 120px);
 }
 
 .about-line {
   font-family: var(--font-display);
   font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
-  font-weight: 300;
+  font-weight: 300 !important;
   letter-spacing: 0.12em;
   color: var(--color-text-muted);
   line-height: 1.85;
   font-style: normal;
+}
+
+.about-line strong,
+.about-line b {
+  font-weight: 300 !important;
+  color: var(--color-text);
 }
 
 .about-line--italic {
@@ -1010,7 +967,7 @@ a, button, [role="button"], .nav-page-link, .forge-submit, .sigil-trigger {
 .about-wordmark {
   font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: 400;
+  font-weight: 300 !important;
   letter-spacing: 0.45em;
   text-transform: uppercase;
   color: var(--color-text-faint);
