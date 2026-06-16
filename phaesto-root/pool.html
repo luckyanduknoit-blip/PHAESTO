@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0908" />
+<title>The Pool — Phaesto Atelier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+<style>
+/* ===== TOKENS ===================================================== */
+:root {
+  --bg:         #0a0908;
+  --surface:    #0f0e0c;
+  --surface-2:  #141312;
+  --border:     rgba(255,255,255,0.06);
+  --border-mid: rgba(255,255,255,0.10);
+  --text:       #ccc9c3;
+  --text-muted: #5a5753;
+  --text-faint: #302e2c;
+  --accent:     #c8b89a;
+  --danger:     #7a3a2a;
+  --font:       'DM Mono', 'Courier New', monospace;
+  --radius:     2px;
+  --max-w:      600px;
+}
+
+/* ===== RESET ====================================================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.65;
+  min-height: 100dvh;
+}
+button { cursor: pointer; font: inherit; border: none; background: none; color: inherit; }
+input, textarea { font: inherit; color: inherit; background: none; border: none; outline: none; }
+a { color: inherit; text-decoration: none; }
+
+/* ===== LAYOUT ===================================================== */
+.screen {
+  display: none;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+.screen.active { display: flex; }
+
+.container {
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ===== AUTH SCREEN ================================================ */
+#screen-auth {
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.auth-wrap {
+  width: 100%;
+  max-width: 340px;
+}
+
+.auth-mark {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+}
+
+.auth-heading {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.auth-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.code-input-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.code-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+  transition: border-color 200ms;
+}
+.code-input::placeholder { color: var(--text-faint); letter-spacing: 0.08em; text-transform: none; }
+.code-input:focus { border-color: var(--border-mid); }
+
+.auth-btn {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: border-color 200ms, color 200ms;
+}
+.auth-btn:hover { border-color: var(--border-mid); color: var(--text); }
+.auth-btn:active { opacity: 0.7; }
+.auth-btn:disabled { opacity: 0.35; pointer-events: none; }
+
+.auth-error {
+  font-size: 11px;
+  color: var(--danger);
+  letter-spacing: 0.06em;
+  margin-top: 12px;
+  min-height: 16px;
+}
+
+/* ===== POOL SCREEN ================================================ */
+#screen-pool {
+  flex-direction: column;
+}
+
+/* Header */
+.pool-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+.pool-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pool-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pool-wordmark {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pool-forge-name {
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.pool-compose-trigger {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  transition: border-color 200ms, color 200ms;
+}
+.pool-compose-trigger:hover { border-color: var(--border-mid); color: var(--text); }
+
+/* Compose */
+.compose-panel {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 300ms ease, padding 300ms ease;
+  padding: 0;
+}
+.compose-panel.open {
+  max-height: 260px;
+  padding: 20px 0;
+}
+.compose-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.compose-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  transition: border-color 200ms;
+}
+.compose-textarea::placeholder { color: var(--text-faint); }
+.compose-textarea:focus { border-color: var(--border-mid); }
+.compose-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.compose-char-count {
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+}
+.compose-char-count.warn { color: var(--danger); }
+.compose-submit {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  transition: border-color 200ms, color 200ms;
+}
+.compose-submit:hover { border-color: var(--border-mid); color: var(--text); }
+.compose-submit:disabled { opacity: 0.3; pointer-events: none; }
+
+/* Feed */
+.feed {
+  flex: 1;
+  padding: 24px 0 80px;
+}
+
+.feed-empty {
+  padding: 64px 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.post {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.post:last-child { border-bottom: none; }
+
+.post-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.post-name {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.post-time {
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+.post-content {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.upvote-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  padding: 4px 0;
+  transition: color 200ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.upvote-btn:hover { color: var(--text-muted); }
+.upvote-btn.voted { color: var(--accent); }
+.upvote-btn svg { width: 12px; height: 12px; }
+
+/* Loading */
+.feed-loading {
+  padding: 48px 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface-2);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  transition: transform 280ms cubic-bezier(0.16,1,0.3,1);
+  z-index: 100;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="screen-auth" class="screen active">
+  <div class="auth-wrap">
+    <div class="auth-mark">Phaesto Atelier</div>
+    <div class="auth-heading">The Pool</div>
+    <div class="auth-sub">Enter your access code.<br />It was delivered with your piece.</div>
+    <div class="code-input-wrap">
+      <input
+        id="code-input"
+        class="code-input"
+        type="text"
+        inputmode="text"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        maxlength="9"
+        placeholder="PH-XXXXXX"
+      />
+    </div>
+    <button id="auth-btn" class="auth-btn" disabled>Enter</button>
+    <div id="auth-error" class="auth-error"></div>
+  </div>
+</div>
+
+<!-- POOL SCREEN -->
+<div id="screen-pool" class="screen">
+
+  <header class="pool-header">
+    <div class="container">
+      <div class="pool-header-left">
+        <span class="pool-wordmark">Phaesto</span>
+        <span id="forge-name-display" class="pool-forge-name"></span>
+      </div>
+      <button id="compose-trigger" class="pool-compose-trigger">+ Post</button>
+    </div>
+  </header>
+
+  <div class="compose-panel" id="compose-panel">
+    <div class="container">
+      <div class="compose-inner">
+        <textarea
+          id="compose-textarea"
+          class="compose-textarea"
+          placeholder="A provocation."
+          maxlength="400"
+        ></textarea>
+        <div class="compose-footer">
+          <span id="char-count" class="compose-char-count">400</span>
+          <button id="compose-submit" class="compose-submit" disabled>Forge</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="feed" id="feed">
+    <div class="container">
+      <div class="feed-loading" id="feed-loading">Loading</div>
+      <div id="feed-posts"></div>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const BASE = '';
+  let SESSION_TOKEN = null;
+  let FORGE_NAME    = null;
+  let upvotedPosts  = new Set();
+  let composing     = false;
+
+  // ── ELEMENTS ──────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const screenAuth   = $('screen-auth');
+  const screenPool   = $('screen-pool');
+  const codeInput    = $('code-input');
+  const authBtn      = $('auth-btn');
+  const authError    = $('auth-error');
+  const forgeDisplay = $('forge-name-display');
+  const composeTrig  = $('compose-trigger');
+  const composePanel = $('compose-panel');
+  const composeTA    = $('compose-textarea');
+  const charCount    = $('char-count');
+  const composeBtn   = $('compose-submit');
+  const feedLoading  = $('feed-loading');
+  const feedPosts    = $('feed-posts');
+  const toastEl      = $('toast');
+
+  // ── TOAST ─────────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
+  }
+
+  // ── SCREENS ───────────────────────────────────────────────────────
+  function showPool() {
+    screenAuth.classList.remove('active');
+    screenPool.classList.add('active');
+    forgeDisplay.textContent = FORGE_NAME || '';
+    loadFeed();
+  }
+
+  // ── AUTH ──────────────────────────────────────────────────────────
+  codeInput.addEventListener('input', () => {
+    authError.textContent = '';
+    authBtn.disabled = codeInput.value.trim().length < 3;
+  });
+
+  codeInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') authBtn.click();
+  });
+
+  authBtn.addEventListener('click', async () => {
+    const code = codeInput.value.trim().toUpperCase();
+    if (!code) return;
+    authBtn.disabled = true;
+    authError.textContent = '';
+
+    try {
+      const res = await fetch(BASE + '/pool/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login_code: code })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        authError.textContent = data.error === 'access_not_granted'
+          ? 'Access not yet granted.'
+          : 'Code not recognised.';
+        authBtn.disabled = false;
+        return;
+      }
+
+      SESSION_TOKEN = data.session_token;
+      FORGE_NAME    = data.forge_name;
+      showPool();
+    } catch {
+      authError.textContent = 'Connection failed. Try again.';
+      authBtn.disabled = false;
+    }
+  });
+
+  // ── COMPOSE ───────────────────────────────────────────────────────
+  composeTrig.addEventListener('click', () => {
+    composing = !composing;
+    composePanel.classList.toggle('open', composing);
+    composeTrig.textContent = composing ? 'Cancel' : '+ Post';
+    if (composing) setTimeout(() => composeTA.focus(), 320);
+  });
+
+  composeTA.addEventListener('input', () => {
+    const remaining = 400 - composeTA.value.length;
+    charCount.textContent = remaining;
+    charCount.classList.toggle('warn', remaining < 40);
+    composeBtn.disabled = composeTA.value.trim().length === 0;
+  });
+
+  composeBtn.addEventListener('click', async () => {
+    const content = composeTA.value.trim();
+    if (!content) return;
+    composeBtn.disabled = true;
+
+    try {
+      const res = await fetch(BASE + '/pool/post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: SESSION_TOKEN, content })
+      });
+
+      if (res.ok) {
+        composeTA.value = '';
+        charCount.textContent = '400';
+        charCount.classList.remove('warn');
+        composing = false;
+        composePanel.classList.remove('open');
+        composeTrig.textContent = '+ Post';
+        await loadFeed();
+        toast('Forged.');
+      } else {
+        const d = await res.json();
+        toast(d.error || 'Failed.');
+        composeBtn.disabled = false;
+      }
+    } catch {
+      toast('Connection failed.');
+      composeBtn.disabled = false;
+    }
+  });
+
+  // ── FEED ──────────────────────────────────────────────────────────
+  function timeAgo(iso) {
+    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (diff < 60)  return 'now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+    return Math.floor(diff / 86400) + 'd';
+  }
+
+  function renderPost(post) {
+    const div = document.createElement('div');
+    div.className = 'post';
+    div.dataset.id = post.id;
+
+    const voted = upvotedPosts.has(post.id);
+
+    div.innerHTML = `
+      <div class="post-meta">
+        <span class="post-name">${escHtml(post.forge_name)}</span>
+        <span class="post-time">${timeAgo(post.created_at)}</span>
+      </div>
+      <div class="post-content">${escHtml(post.content)}</div>
+      <div class="post-actions">
+        <button class="upvote-btn${voted ? ' voted' : ''}" data-post-id="${post.id}">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M6 10V2M2 6l4-4 4 4"/>
+          </svg>
+          <span>${post.upvotes}</span>
+        </button>
+      </div>
+    `;
+    return div;
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  async function loadFeed() {
+    feedLoading.style.display = 'block';
+    feedPosts.innerHTML = '';
+
+    try {
+      const res = await fetch(BASE + '/pool/feed', {
+        headers: { 'Authorization': 'Bearer ' + SESSION_TOKEN }
+      });
+
+      feedLoading.style.display = 'none';
+
+      if (!res.ok) { feedPosts.innerHTML = '<div class="feed-empty">Unavailable.</div>'; return; }
+
+      const data = await res.json();
+      const posts = data.posts || [];
+
+      if (posts.length === 0) {
+        feedPosts.innerHTML = '<div class="feed-empty">The forge is silent.</div>';
+        return;
+      }
+
+      posts.forEach(p => feedPosts.appendChild(renderPost(p)));
+    } catch {
+      feedLoading.style.display = 'none';
+      feedPosts.innerHTML = '<div class="feed-empty">Connection failed.</div>';
+    }
+  }
+
+  // ── UPVOTE (delegated) ────────────────────────────────────────────
+  feedPosts.addEventListener('click', async e => {
+    const btn = e.target.closest('.upvote-btn');
+    if (!btn) return;
+    const postId = btn.dataset.postId;
+    if (upvotedPosts.has(postId)) return;
+
+    upvotedPosts.add(postId);
+    btn.classList.add('voted');
+    const countEl = btn.querySelector('span');
+    countEl.textContent = parseInt(countEl.textContent, 10) + 1;
+
+    try {
+      const res = await fetch(BASE + '/pool/upvote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: SESSION_TOKEN, post_id: postId })
+      });
+      if (!res.ok) {
+        upvotedPosts.delete(postId);
+        btn.classList.remove('voted');
+        countEl.textContent = parseInt(countEl.textContent, 10) - 1;
+      }
+    } catch {
+      upvotedPosts.delete(postId);
+      btn.classList.remove('voted');
+      countEl.textContent = parseInt(countEl.textContent, 10) - 1;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
