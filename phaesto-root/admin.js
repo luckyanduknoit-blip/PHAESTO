@@ -155,7 +155,7 @@ async function main() {
   // 6. EMAIL
   if (answers.owner_email && answers.owner_email.trim()) {
     const { error: emailErr } = await resend.emails.send({
-      from:    'The Forge <forge@mail.phaestoatelier.com>',
+      from:    'The Forge <forge@.phaestoatelier.com>',
       to:      [answers.owner_email],
       subject: 'The forge acknowledges you.',
       html:    holderAcknowledgmentHTML({
