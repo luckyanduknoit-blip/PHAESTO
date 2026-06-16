@@ -6,7 +6,7 @@ const jwt       = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
-const fs   = require('fs');@forge
+const fs   = require('fs');
 const path = require('path');
 
 const supabase = createClient(
