@@ -5,6 +5,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
+const { Resend } = require('resend');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -15,6 +16,8 @@ const supabase = createClient(
   process.env.SUPABASE_URL || 'https://txepvzhmllhxpqeboodi.supabase.co',
   process.env.SUPABASE_SERVICE_KEY
 );
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 app.use(cors());
 app.use(express.json());
@@ -58,6 +61,13 @@ async function generateForgeName() {
   const noun = FORGE_NOUNS[Math.floor(Math.random() * FORGE_NOUNS.length)];
   return `${adj} ${noun} ${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 }
+
+// =============================================================
+// FORGE ENTRY QUESTION (Step 5)
+// Single source of truth — change this one line to update sitewide.
+// =============================================================
+
+const FORGE_QUESTION = 'What will you devote yourself to until it is made real?';
 
 // =============================================================
 // HELPER: Validate NFC token → return ownership row
@@ -412,6 +422,251 @@ app.post('/pool/upvote', async (req, res) => {
   } catch {
     return res.status(500).json({ error: 'server_error' });
   }
+});
+
+// =============================================================
+// STEP 5 — REFERRAL ENTRY ROUTES
+// =============================================================
+
+// GET /enter/:referral_code
+// Validates code, returns the forge question.
+// 404 = never existed. 410 = already used.
+app.get('/enter/:referral_code', async (req, res) => {
+  const { referral_code } = req.params;
+
+  const { data: referral, error } = await supabase
+    .from('referrals')
+    .select('id, used')
+    .eq('referral_code', referral_code)
+    .single();
+
+  if (error || !referral) return res.status(404).json({ error: 'This path does not exist.' });
+  if (referral.used === true) return res.status(410).json({ error: 'This entry has already been claimed.' });
+
+  return res.status(200).json({ question: FORGE_QUESTION });
+});
+
+// POST /enter/:referral_code
+// Atomically locks the code, inserts forge_entry, sends two emails.
+// Does NOT auto-approve — founder reviews forge_entries manually.
+app.post('/enter/:referral_code', async (req, res) => {
+  const { referral_code } = req.params;
+  const { email, response_text } = req.body;
+
+  if (!email || !response_text)
+    return res.status(400).json({ error: 'Incomplete submission.' });
+
+  const { data: updateResult, error: updateError } = await supabase
+    .from('referrals')
+    .update({ used: true, used_by: email })
+    .eq('referral_code', referral_code)
+    .eq('used', false)
+    .select('id');
+
+  if (updateError || !updateResult || updateResult.length === 0)
+    return res.status(410).json({ error: 'This entry has already been claimed.' });
+
+  const { error: entryError } = await supabase
+    .from('forge_entries')
+    .insert({ referral_code, email, response_text, approved: false });
+
+  if (entryError) {
+    console.error('forge_entries insert failed:', entryError);
+    return res.status(500).json({ error: 'Entry could not be recorded.' });
+  }
+
+  await resend.emails.send({
+    from: 'forge@mail.phaestoatelier.com',
+    to: email,
+    subject: 'The Forge Has Received Your Entry',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#0e0e0e;color:#c8c8c8;">
+        <p style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#555;margin-bottom:32px;">Phaesto Atelier</p>
+        <p style="font-size:15px;line-height:1.7;">The forge has received your entry.</p>
+        <p style="font-size:15px;line-height:1.7;margin-top:16px;">You will be notified if access is extended.</p>
+        <p style="font-size:12px;color:#333;margin-top:48px;border-top:1px solid #1a1a1a;padding-top:24px;">Do not reply to this message.</p>
+      </div>
+    `
+  });
+
+  await resend.emails.send({
+    from: 'forge@mail.phaestoatelier.com',
+    to: 'lucky@phaestoatelier.com',
+    subject: 'Forge Entry — Review Required',
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#0e0e0e;color:#c8c8c8;">
+        <p style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#555;margin-bottom:24px;">Forge Entry — Internal</p>
+        <p><strong style="color:#fff;">Email:</strong> ${email}</p>
+        <p style="margin-top:16px;"><strong style="color:#fff;">Question:</strong> ${FORGE_QUESTION}</p>
+        <p style="margin-top:8px;padding:16px;background:#161616;border:1px solid #222;border-radius:6px;line-height:1.7;">
+          ${response_text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        </p>
+        <p style="margin-top:24px;font-size:13px;color:#444;">
+          To approve: flip <code style="color:#666;">approved = true</code> and set <code style="color:#666;">approved_at = now()</code> in forge_entries, then call <code style="color:#666;">POST /pool/activate</code> with their nfc_token.
+        </p>
+      </div>
+    `
+  });
+
+  return res.status(200).json({ success: true });
+});
+
+// =============================================================
+// STEP 5 — CRON: Daily referral generation for approved holders
+// Render cron hits GET /cron/referrals daily with x-admin-secret.
+// Finds holders approved 30+ days ago with no referral code yet.
+// =============================================================
+
+app.get('/cron/referrals', async (req, res) => {
+  const secret = req.headers['x-admin-secret'];
+  if (secret !== process.env.ADMIN_SECRET)
+    return res.status(403).json({ error: 'Forbidden' });
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: entries, error } = await supabase
+    .from('forge_entries')
+    .select('email, approved_at')
+    .eq('approved', true)
+    .lte('approved_at', thirtyDaysAgo);
+
+  if (error || !entries || entries.length === 0)
+    return res.status(200).json({ processed: 0 });
+
+  let processed = 0;
+
+  for (const entry of entries) {
+    const { data: owner } = await supabase
+      .from('ownership')
+      .select('nfc_token, referral_generated')
+      .eq('email', entry.email)
+      .eq('is_current_owner', true)
+      .single();
+
+    if (!owner || owner.referral_generated === true) continue;
+
+    const referralCode = 'PH-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+
+    await supabase.from('referrals').insert({
+      holder_token: owner.nfc_token,
+      referral_code: referralCode,
+      used: false
+    });
+
+    await supabase
+      .from('ownership')
+      .update({ referral_generated: true })
+      .eq('nfc_token', owner.nfc_token);
+
+    await resend.emails.send({
+      from: 'forge@mail.phaestoatelier.com',
+      to: entry.email,
+      subject: 'The Forge Has Extended Your Reach',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#0e0e0e;color:#c8c8c8;">
+          <p style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#555;margin-bottom:32px;">Phaesto Atelier</p>
+          <p style="font-size:15px;line-height:1.7;">The forge has determined you are ready to extend its reach.</p>
+          <p style="font-size:15px;line-height:1.7;margin-top:16px;">Your referral code is available when you access your cast record.</p>
+          <p style="font-size:12px;color:#333;margin-top:48px;border-top:1px solid #1a1a1a;padding-top:24px;">One code. One entry. It cannot be reused.</p>
+        </div>
+      `
+    });
+
+    processed++;
+  }
+
+  return res.status(200).json({ processed });
+});
+
+// =============================================================
+// STEP 6 — RANDOM FORGE CAST (Admin trigger)
+// POST /admin/forge-cast — requires x-admin-secret header.
+// Selects random eligible holder, logs to forge_events, emails winner.
+// Eligible = current owner + active in last 60 days + not yet received.
+// Full cycle: if all holders received, resets everyone for next cycle.
+// =============================================================
+
+app.post('/admin/forge-cast', async (req, res) => {
+  const secret = req.headers['x-admin-secret'];
+  if (!secret || secret !== process.env.ADMIN_SECRET)
+    return res.status(403).json({ error: 'Forbidden' });
+
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: eligible, error } = await supabase
+    .from('ownership')
+    .select('id, nfc_token, email, holder_name, forge_name')
+    .eq('is_current_owner', true)
+    .eq('forge_cast_received', false)
+    .gte('pool_last_active', sixtyDaysAgo);
+
+  if (error) return res.status(500).json({ error: 'Query failed.' });
+
+  if (!eligible || eligible.length === 0) {
+    const { data: allHolders } = await supabase
+      .from('ownership')
+      .select('forge_cast_received')
+      .eq('is_current_owner', true);
+
+    const allReceived = allHolders && allHolders.length > 0 &&
+      allHolders.every(h => h.forge_cast_received === true);
+
+    if (allReceived) {
+      await supabase
+        .from('ownership')
+        .update({ forge_cast_received: false })
+        .eq('is_current_owner', true);
+
+      return res.status(200).json({
+        message: 'Full cycle complete. All holders reset. Run again to begin the next cycle.'
+      });
+    }
+
+    return res.status(200).json({
+      message: 'No eligible holders. Active holders may have all received a cast, or no one has been active in 60 days.'
+    });
+  }
+
+  const winner = eligible[Math.floor(Math.random() * eligible.length)];
+
+  await supabase
+    .from('ownership')
+    .update({ forge_cast_received: true })
+    .eq('nfc_token', winner.nfc_token);
+
+  await supabase.from('forge_events').insert({
+    event_type: 'forge_cast',
+    recipient_token: winner.nfc_token,
+    notes: `Dispatched to ${winner.email}`
+  });
+
+  await resend.emails.send({
+    from: 'forge@mail.phaestoatelier.com',
+    to: winner.email,
+    subject: 'The Forge Has Chosen',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#0e0e0e;color:#c8c8c8;">
+        <p style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#555;margin-bottom:32px;">Phaesto Atelier</p>
+        <p style="font-size:15px;line-height:1.7;">The forge has chosen you.</p>
+        <p style="font-size:15px;line-height:1.7;margin-top:16px;">
+          What arrives belongs to no cycle, no system, no expectation.<br>
+          It is a recognition.
+        </p>
+        <p style="font-size:15px;line-height:1.7;margin-top:16px;">Watch for it.</p>
+        <p style="font-size:12px;color:#333;margin-top:48px;border-top:1px solid #1a1a1a;padding-top:24px;">No reply is needed. No announcement will be made.</p>
+      </div>
+    `
+  });
+
+  return res.status(200).json({
+    success: true,
+    selected: {
+      email:       winner.email,
+      holder_name: winner.holder_name,
+      forge_name:  winner.forge_name || 'unassigned'
+    },
+    eligible_pool_size: eligible.length
+  });
 });
 
 // =============================================================
