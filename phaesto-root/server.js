@@ -20,7 +20,27 @@ const supabase = createClient(
 app.use(cors());
 app.use(express.json());
 
-// --- API Routes ---
+// --- HELPER: Validate NFC token and return ownership row ---
+async function validateToken(token) {
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { piece_id } = decoded;
+    const { data: ownership, error } = await supabase
+      .from('ownership')
+      .select('*')
+      .eq('nfc_token', token)
+      .eq('is_current_owner', true)
+      .single();
+    if (error || !ownership) return null;
+    return ownership;
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================
+// EXISTING ROUTES — UNTOUCHED
+// =============================================================
 
 // GET /api/piece/:token — Verify NFC token and return certificate data
 app.get('/api/piece/:token', async (req, res) => {
@@ -102,7 +122,6 @@ app.post('/api/transfer/initiate', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { piece_id } = decoded;
 
-    // Verify seller is current owner
     const { data: ownership, error: ownerErr } = await supabase
       .from('ownership')
       .select('*')
@@ -118,7 +137,6 @@ app.post('/api/transfer/initiate', async (req, res) => {
       return res.status(403).json({ error: 'email_mismatch' });
     }
 
-    // Generate 8-char alphanumeric transfer code (uppercase)
     const transfer_code = crypto.randomBytes(4).toString('hex').toUpperCase();
     const transfer_code_expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
@@ -146,7 +164,6 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(400).json({ error: 'missing_fields' });
     }
 
-    // Find valid ownership row with this transfer code
     const { data: ownership, error: findErr } = await supabase
       .from('ownership')
       .select('*')
@@ -159,13 +176,11 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(400).json({ error: 'invalid_or_expired_code' });
     }
 
-    // Generate new JWT for the new owner
     const new_token = jwt.sign(
       { piece_id: ownership.piece_id, token_id: uuidv4() },
       process.env.JWT_SECRET
     );
 
-    // Log the transfer
     const { error: logErr } = await supabase
       .from('transfer_log')
       .insert({
@@ -178,7 +193,6 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(500).json({ error: 'log_failed' });
     }
 
-    // Deactivate old ownership
     const { error: deactivateErr } = await supabase
       .from('ownership')
       .update({
@@ -192,7 +206,6 @@ app.post('/api/transfer/claim', async (req, res) => {
       return res.status(500).json({ error: 'deactivate_failed' });
     }
 
-    // Create new ownership row
     const { error: insertErr } = await supabase
       .from('ownership')
       .insert({
@@ -213,12 +226,189 @@ app.post('/api/transfer/claim', async (req, res) => {
   }
 });
 
-// --- Static file serving (preserves original behavior) ---
+// =============================================================
+// POOL ROUTES — NEW
+// =============================================================
+
+// POST /pool/post — Submit a post to the Pool
+// Body: { token, content, post_type }
+app.post('/pool/post', async (req, res) => {
+  try {
+    const { token, content, post_type } = req.body;
+
+    if (!token || !content || !post_type) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+
+    const validTypes = ['provocation', 'question', 'struggle', 'vote'];
+    if (!validTypes.includes(post_type)) {
+      return res.status(400).json({ error: 'invalid_post_type' });
+    }
+
+    const ownership = await validateToken(token);
+    if (!ownership) {
+      return res.status(401).json({ error: 'invalid_token' });
+    }
+
+    if (!ownership.pool_access) {
+      return res.status(403).json({ error: 'pool_access_denied' });
+    }
+
+    if (!ownership.forge_name) {
+      return res.status(403).json({ error: 'forge_name_not_set' });
+    }
+
+    const { error: insertErr } = await supabase
+      .from('pool_posts')
+      .insert({
+        forge_name: ownership.forge_name,
+        content:    content.trim(),
+        post_type
+      });
+
+    if (insertErr) {
+      return res.status(500).json({ error: 'post_failed' });
+    }
+
+    // Update pool_last_active
+    await supabase
+      .from('ownership')
+      .update({ pool_last_active: new Date().toISOString() })
+      .eq('id', ownership.id);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('/pool/post error:', err);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// GET /pool/feed — Get visible pool posts
+// Header: Authorization: Bearer <token>
+app.get('/pool/feed', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+
+    if (!token) {
+      return res.status(401).json({ error: 'missing_token' });
+    }
+
+    const ownership = await validateToken(token);
+    if (!ownership) {
+      return res.status(401).json({ error: 'invalid_token' });
+    }
+
+    if (!ownership.pool_access) {
+      return res.status(403).json({ error: 'pool_access_denied' });
+    }
+
+    const { data: posts, error: fetchErr } = await supabase
+      .from('pool_posts')
+      .select('id, forge_name, content, post_type, upvotes, created_at')
+      .eq('visible', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (fetchErr) {
+      return res.status(500).json({ error: 'feed_fetch_failed' });
+    }
+
+    // Update pool_last_active
+    await supabase
+      .from('ownership')
+      .update({ pool_last_active: new Date().toISOString() })
+      .eq('id', ownership.id);
+
+    return res.json({ posts: posts || [], forge_name: ownership.forge_name });
+  } catch (err) {
+    console.error('/pool/feed error:', err);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// POST /pool/upvote — Upvote a post (one per forge name per post)
+// Body: { token, post_id }
+app.post('/pool/upvote', async (req, res) => {
+  try {
+    const { token, post_id } = req.body;
+
+    if (!token || !post_id) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+
+    const ownership = await validateToken(token);
+    if (!ownership) {
+      return res.status(401).json({ error: 'invalid_token' });
+    }
+
+    if (!ownership.pool_access) {
+      return res.status(403).json({ error: 'pool_access_denied' });
+    }
+
+    if (!ownership.forge_name) {
+      return res.status(403).json({ error: 'forge_name_not_set' });
+    }
+
+    // Check for duplicate upvote
+    const { data: existing } = await supabase
+      .from('pool_upvotes')
+      .select('id')
+      .eq('forge_name', ownership.forge_name)
+      .eq('post_id', post_id)
+      .single();
+
+    if (existing) {
+      return res.status(409).json({ error: 'already_upvoted' });
+    }
+
+    // Insert upvote record
+    const { error: upvoteErr } = await supabase
+      .from('pool_upvotes')
+      .insert({ forge_name: ownership.forge_name, post_id });
+
+    if (upvoteErr) {
+      return res.status(500).json({ error: 'upvote_failed' });
+    }
+
+    // Increment upvotes count on post
+    const { error: incrErr } = await supabase.rpc('increment_upvotes', { post_id });
+    if (incrErr) {
+      // Fallback: manual increment
+      const { data: post } = await supabase
+        .from('pool_posts')
+        .select('upvotes')
+        .eq('id', post_id)
+        .single();
+      if (post) {
+        await supabase
+          .from('pool_posts')
+          .update({ upvotes: post.upvotes + 1 })
+          .eq('id', post_id);
+      }
+    }
+
+    // Update pool_last_active
+    await supabase
+      .from('ownership')
+      .update({ pool_last_active: new Date().toISOString() })
+      .eq('id', ownership.id);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('/pool/upvote error:', err);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// =============================================================
+// STATIC + SPA FALLBACK — UNTOUCHED
+// =============================================================
+
 app.use(express.static(path.join(__dirname), {
   extensions: ['html']
 }));
 
-// SPA fallback — serve index.html for any unmatched route
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
