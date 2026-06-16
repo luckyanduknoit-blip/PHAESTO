@@ -136,9 +136,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ===== POOL SCREEN ================================================ */
-#screen-pool {
-  flex-direction: column;
-}
+#screen-pool { flex-direction: column; }
 
 /* Header */
 .pool-header {
@@ -188,11 +186,11 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface);
   overflow: hidden;
   max-height: 0;
-  transition: max-height 300ms ease, padding 300ms ease;
+  transition: max-height 340ms ease, padding 340ms ease;
   padding: 0;
 }
 .compose-panel.open {
-  max-height: 260px;
+  max-height: 320px;
   padding: 20px 0;
 }
 .compose-inner {
@@ -200,6 +198,29 @@ a { color: inherit; text-decoration: none; }
   flex-direction: column;
   gap: 12px;
 }
+
+/* Post type selector */
+.type-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.type-btn {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  transition: border-color 180ms, color 180ms;
+}
+.type-btn:hover { color: var(--text-muted); border-color: var(--border-mid); }
+.type-btn.selected {
+  color: var(--accent);
+  border-color: rgba(200,184,154,0.3);
+}
+
 .compose-textarea {
   width: 100%;
   min-height: 80px;
@@ -266,11 +287,25 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   margin-bottom: 10px;
 }
+.post-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .post-name {
   font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+.post-type-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px 6px;
 }
 .post-time {
   font-size: 10px;
@@ -379,14 +414,23 @@ a { color: inherit; text-decoration: none; }
   <div class="compose-panel" id="compose-panel">
     <div class="container">
       <div class="compose-inner">
+
+        <!-- Post type selector -->
+        <div class="type-selector" id="type-selector">
+          <button class="type-btn selected" data-type="provocation">Provocation</button>
+          <button class="type-btn" data-type="question">Question</button>
+          <button class="type-btn" data-type="struggle">Struggle</button>
+          <button class="type-btn" data-type="vote">Vote</button>
+        </div>
+
         <textarea
           id="compose-textarea"
           class="compose-textarea"
           placeholder="A provocation."
-          maxlength="400"
+          maxlength="1200"
         ></textarea>
         <div class="compose-footer">
-          <span id="char-count" class="compose-char-count">400</span>
+          <span id="char-count" class="compose-char-count">1200</span>
           <button id="compose-submit" class="compose-submit" disabled>Forge</button>
         </div>
       </div>
@@ -408,11 +452,20 @@ a { color: inherit; text-decoration: none; }
 (function () {
   'use strict';
 
-  const BASE = '';
-  let SESSION_TOKEN = null;
-  let FORGE_NAME    = null;
-  let upvotedPosts  = new Set();
-  let composing     = false;
+  const BASE         = '';
+  const MAX_CHARS    = 1200;
+  let SESSION_TOKEN  = null;
+  let FORGE_NAME     = null;
+  let upvotedPosts   = new Set();
+  let composing      = false;
+  let selectedType   = 'provocation';
+
+  const PLACEHOLDERS = {
+    provocation: 'A provocation.',
+    question:    'A question for the forge.',
+    struggle:    'What you are working through.',
+    vote:        'Put something to the forge.'
+  };
 
   // ── ELEMENTS ──────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
@@ -424,6 +477,7 @@ a { color: inherit; text-decoration: none; }
   const forgeDisplay = $('forge-name-display');
   const composeTrig  = $('compose-trigger');
   const composePanel = $('compose-panel');
+  const typeSelector = $('type-selector');
   const composeTA    = $('compose-textarea');
   const charCount    = $('char-count');
   const composeBtn   = $('compose-submit');
@@ -453,7 +507,6 @@ a { color: inherit; text-decoration: none; }
     authError.textContent = '';
     authBtn.disabled = codeInput.value.trim().length < 3;
   });
-
   codeInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') authBtn.click();
   });
@@ -465,10 +518,10 @@ a { color: inherit; text-decoration: none; }
     authError.textContent = '';
 
     try {
-      const res = await fetch(BASE + '/pool/auth', {
-        method: 'POST',
+      const res  = await fetch(BASE + '/pool/auth', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ login_code: code })
+        body:    JSON.stringify({ login_code: code })
       });
       const data = await res.json();
 
@@ -489,18 +542,28 @@ a { color: inherit; text-decoration: none; }
     }
   });
 
+  // ── POST TYPE SELECTOR ────────────────────────────────────────────
+  typeSelector.addEventListener('click', e => {
+    const btn = e.target.closest('.type-btn');
+    if (!btn) return;
+    typeSelector.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedType = btn.dataset.type;
+    composeTA.placeholder = PLACEHOLDERS[selectedType] || 'A provocation.';
+  });
+
   // ── COMPOSE ───────────────────────────────────────────────────────
   composeTrig.addEventListener('click', () => {
     composing = !composing;
     composePanel.classList.toggle('open', composing);
     composeTrig.textContent = composing ? 'Cancel' : '+ Post';
-    if (composing) setTimeout(() => composeTA.focus(), 320);
+    if (composing) setTimeout(() => composeTA.focus(), 340);
   });
 
   composeTA.addEventListener('input', () => {
-    const remaining = 400 - composeTA.value.length;
+    const remaining = MAX_CHARS - composeTA.value.length;
     charCount.textContent = remaining;
-    charCount.classList.toggle('warn', remaining < 40);
+    charCount.classList.toggle('warn', remaining < 120);
     composeBtn.disabled = composeTA.value.trim().length === 0;
   });
 
@@ -511,18 +574,23 @@ a { color: inherit; text-decoration: none; }
 
     try {
       const res = await fetch(BASE + '/pool/post', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: SESSION_TOKEN, content })
+        body:    JSON.stringify({ token: SESSION_TOKEN, content, post_type: selectedType })
       });
 
       if (res.ok) {
         composeTA.value = '';
-        charCount.textContent = '400';
+        charCount.textContent = MAX_CHARS;
         charCount.classList.remove('warn');
         composing = false;
         composePanel.classList.remove('open');
         composeTrig.textContent = '+ Post';
+        // reset type selector to provocation
+        typeSelector.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+        typeSelector.querySelector('[data-type="provocation"]').classList.add('selected');
+        selectedType = 'provocation';
+        composeTA.placeholder = PLACEHOLDERS.provocation;
         await loadFeed();
         toast('Forged.');
       } else {
@@ -539,28 +607,46 @@ a { color: inherit; text-decoration: none; }
   // ── FEED ──────────────────────────────────────────────────────────
   function timeAgo(iso) {
     const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
-    if (diff < 60)  return 'now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm';
+    if (diff < 60)    return 'now';
+    if (diff < 3600)  return Math.floor(diff / 60) + 'm';
     if (diff < 86400) return Math.floor(diff / 3600) + 'h';
     return Math.floor(diff / 86400) + 'd';
   }
 
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function renderPost(post) {
-    const div = document.createElement('div');
-    div.className = 'post';
+    const div   = document.createElement('div');
+    div.className  = 'post';
     div.dataset.id = post.id;
 
+    // upvoted_by_me from server seeds the local set
+    if (post.upvoted_by_me) upvotedPosts.add(post.id);
     const voted = upvotedPosts.has(post.id);
+
+    // Only show type label if not provocation (provocation is the default/baseline)
+    const typeLabel = post.post_type && post.post_type !== 'provocation'
+      ? `<span class="post-type-label">${escHtml(post.post_type)}</span>`
+      : '';
 
     div.innerHTML = `
       <div class="post-meta">
-        <span class="post-name">${escHtml(post.forge_name)}</span>
+        <div class="post-meta-left">
+          <span class="post-name">${escHtml(post.forge_name)}</span>
+          ${typeLabel}
+        </div>
         <span class="post-time">${timeAgo(post.created_at)}</span>
       </div>
       <div class="post-content">${escHtml(post.content)}</div>
       <div class="post-actions">
-        <button class="upvote-btn${voted ? ' voted' : ''}" data-post-id="${post.id}">
-          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+        <button class="upvote-btn${voted ? ' voted' : ''}" data-post-id="${post.id}" aria-label="Upvote">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
             <path d="M6 10V2M2 6l4-4 4 4"/>
           </svg>
           <span>${post.upvotes}</span>
@@ -570,13 +656,10 @@ a { color: inherit; text-decoration: none; }
     return div;
   }
 
-  function escHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
   async function loadFeed() {
     feedLoading.style.display = 'block';
     feedPosts.innerHTML = '';
+    upvotedPosts.clear();
 
     try {
       const res = await fetch(BASE + '/pool/feed', {
@@ -585,9 +668,12 @@ a { color: inherit; text-decoration: none; }
 
       feedLoading.style.display = 'none';
 
-      if (!res.ok) { feedPosts.innerHTML = '<div class="feed-empty">Unavailable.</div>'; return; }
+      if (!res.ok) {
+        feedPosts.innerHTML = '<div class="feed-empty">Unavailable.</div>';
+        return;
+      }
 
-      const data = await res.json();
+      const data  = await res.json();
       const posts = data.posts || [];
 
       if (posts.length === 0) {
@@ -595,6 +681,7 @@ a { color: inherit; text-decoration: none; }
         return;
       }
 
+      // renderPost seeds upvotedPosts from upvoted_by_me
       posts.forEach(p => feedPosts.appendChild(renderPost(p)));
     } catch {
       feedLoading.style.display = 'none';
@@ -609,6 +696,7 @@ a { color: inherit; text-decoration: none; }
     const postId = btn.dataset.postId;
     if (upvotedPosts.has(postId)) return;
 
+    // Optimistic update
     upvotedPosts.add(postId);
     btn.classList.add('voted');
     const countEl = btn.querySelector('span');
@@ -616,11 +704,12 @@ a { color: inherit; text-decoration: none; }
 
     try {
       const res = await fetch(BASE + '/pool/upvote', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: SESSION_TOKEN, post_id: postId })
+        body:    JSON.stringify({ token: SESSION_TOKEN, post_id: postId })
       });
       if (!res.ok) {
+        // Rollback
         upvotedPosts.delete(postId);
         btn.classList.remove('voted');
         countEl.textContent = parseInt(countEl.textContent, 10) - 1;
