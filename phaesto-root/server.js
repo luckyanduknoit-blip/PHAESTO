@@ -476,7 +476,7 @@ app.post('/enter/:referral_code', async (req, res) => {
   }
 
   await resend.emails.send({
-    from: 'forge@mail.phaestoatelier.com',
+    from: 'forge@.phaestoatelier.com',
     to: email,
     subject: 'The Forge Has Received Your Entry',
     html: `
@@ -490,7 +490,7 @@ app.post('/enter/:referral_code', async (req, res) => {
   });
 
   await resend.emails.send({
-    from: 'forge@mail.phaestoatelier.com',
+    from: 'forge@.phaestoatelier.com',
     to: 'lucky@phaestoatelier.com',
     subject: 'Forge Entry — Review Required',
     html: `
@@ -559,7 +559,7 @@ app.get('/cron/referrals', async (req, res) => {
       .eq('nfc_token', owner.nfc_token);
 
     await resend.emails.send({
-      from: 'forge@mail.phaestoatelier.com',
+      from: 'forge@.phaestoatelier.com',
       to: entry.email,
       subject: 'The Forge Has Extended Your Reach',
       html: `
@@ -641,7 +641,7 @@ app.post('/admin/forge-cast', async (req, res) => {
   });
 
   await resend.emails.send({
-    from: 'forge@mail.phaestoatelier.com',
+    from: 'forge@.phaestoatelier.com',
     to: winner.email,
     subject: 'The Forge Has Chosen',
     html: `
