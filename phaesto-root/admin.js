@@ -6,7 +6,7 @@ const jwt       = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
-const fs   = require('fs');
+const fs   = require('fs');@forge
 const path = require('path');
 
 const supabase = createClient(
@@ -155,7 +155,7 @@ async function main() {
   // 6. EMAIL
   if (answers.owner_email && answers.owner_email.trim()) {
     const { error: emailErr } = await resend.emails.send({
-      from:    'The Forge <forge@.phaestoatelier.com>',
+      from:    'The Forge <forge@phaestoatelier.com>',
       to:      [answers.owner_email],
       subject: 'The forge acknowledges you.',
       html:    holderAcknowledgmentHTML({
