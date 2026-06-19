@@ -744,11 +744,14 @@ a { color: inherit; text-decoration: none; }
       const data = await res.json();
 
       if (!res.ok) {
-        authError.textContent =
-          data.error === 'access_not_granted' ? 'Access not yet granted.' :
-          data.error === 'invalid_code'        ? 'Code not recognised.' :
-          'Connection failed. Try again.';
-        authBtn.disabled = false;
+    const msgs = {
+      access_not_granted: 'Access not yet granted.',
+      invalid_code: 'Code not recognised.',
+      missing_code: 'No code entered.',
+      forge_name_failed: 'Server error. Try again.'
+    };
+    authError.textContent = msgs[data.error] || 'Something went wrong. Try again.';
+    authBtn.disabled = false;
         authBtn.textContent = 'Enter the Forge';
         return;
       }
@@ -815,7 +818,13 @@ a { color: inherit; text-decoration: none; }
         toast('Forged.');
       } else {
         const d = await res.json();
-        toast(d.error || 'Failed.');
+        const msgs = {
+            forge_name_not_set: 'Forge name not yet assigned.',
+            pool_access_denied: 'Access not granted.',
+            content_length_invalid: 'Content too long or empty.',
+            invalid_token: 'Session expired. Refresh and re-enter.'
+          };
+          toast(msgs[d.error] || d.error || 'Failed.');
         composeBtn.disabled = false;
       }
     } catch {
@@ -922,7 +931,8 @@ a { color: inherit; text-decoration: none; }
     upvotedPosts.add(postId);
     btn.classList.add('voted');
     const countEl = btn.querySelector('span');
-    countEl.textContent = parseInt(countEl.textContent, 10) + 1;
+    const prev = parseInt(countEl.textContent, 10) || 0;
+        countEl.textContent = prev + 1;
 
     try {
       const res = await fetch(BASE + '/pool/upvote', {
@@ -933,12 +943,12 @@ a { color: inherit; text-decoration: none; }
       if (!res.ok) {
         upvotedPosts.delete(postId);
         btn.classList.remove('voted');
-        countEl.textContent = parseInt(countEl.textContent, 10) - 1;
+        countEl.textContent = prev;
       }
     } catch {
       upvotedPosts.delete(postId);
       btn.classList.remove('voted');
-      countEl.textContent = parseInt(countEl.textContent, 10) - 1;
+      countEl.textContent = prev;
     }
   });
 
