@@ -3,45 +3,90 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0a0908" />
+<meta name="theme-color" content="#0A0A0A" />
 <title>The Pool — Phaesto Atelier</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet" />
 <style>
-/* ===== TOKENS ===================================================== */
+
+/* ===== TOKENS (exact match with style.css) ======================== */
 :root {
-  --bg:         #0a0908;
-  --surface:    #0f0e0c;
-  --surface-2:  #141312;
-  --border:     rgba(255,255,255,0.06);
-  --border-mid: rgba(255,255,255,0.10);
-  --text:       #ccc9c3;
-  --text-muted: #5a5753;
-  --text-faint: #302e2c;
-  --accent:     #c8b89a;
-  --danger:     #7a3a2a;
-  --font:       'DM Mono', 'Courier New', monospace;
-  --radius:     2px;
-  --max-w:      600px;
+  --color-bg:           #0A0A0A;
+  --color-surface:      #0F0F0F;
+  --color-surface-2:    #141414;
+  --color-border:       rgba(245,243,240,0.08);
+  --color-border-mid:   rgba(245,243,240,0.14);
+  --color-divider:      rgba(245,243,240,0.05);
+
+  --color-text:         #F5F3F0;
+  --color-text-muted:   #8A8880;
+  --color-text-faint:   #4A4945;
+  --color-text-whisper: rgba(245,243,240,0.25);
+
+  --color-accent:       #B8B0A4;
+  --color-accent-hover: #D4CEC4;
+  --color-gold:         #C9A96E;
+  --color-danger:       rgba(180,80,50,0.85);
+
+  --font-display: 'Cormorant Garamond', 'Georgia', serif;
+  --font-body:    'Cormorant Garamond', 'Georgia', serif;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-interactive: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  --text-xs:   clamp(0.7rem,  0.65rem + 0.25vw, 0.8rem);
+  --text-sm:   clamp(0.8rem,  0.75rem + 0.25vw, 0.9rem);
+  --text-base: clamp(0.9rem,  0.85rem + 0.25vw, 1rem);
+  --text-lg:   clamp(1.1rem,  1rem    + 0.5vw,  1.35rem);
+  --text-xl:   clamp(1.5rem,  1.2rem  + 1vw,    2rem);
+  --text-2xl:  clamp(2rem,    1.4rem  + 2vw,    3rem);
+
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --content-narrow:  640px;
+  --max-pool-w:      600px;
 }
 
 /* ===== RESET ====================================================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 13px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
   line-height: 1.65;
   min-height: 100dvh;
+  overflow-x: hidden;
 }
 button { cursor: pointer; font: inherit; border: none; background: none; color: inherit; }
 input, textarea { font: inherit; color: inherit; background: none; border: none; outline: none; }
 a { color: inherit; text-decoration: none; }
 
-/* ===== LAYOUT ===================================================== */
+/* ===== GRAIN (exact from style.css) =============================== */
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+}
+
+/* ===== SCREEN SYSTEM ============================================== */
 .screen {
   display: none;
   flex-direction: column;
@@ -51,101 +96,157 @@ a { color: inherit; text-decoration: none; }
 
 .container {
   width: 100%;
-  max-width: var(--max-w);
+  max-width: var(--max-pool-w);
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 var(--space-6);
 }
 
 /* ===== AUTH SCREEN ================================================ */
 #screen-auth {
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  padding: clamp(var(--space-12), 10vw, var(--space-16)) var(--space-6);
+  min-height: 100dvh;
 }
 
 .auth-wrap {
   width: 100%;
-  max-width: 340px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
-.auth-mark {
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 40px;
+/* Sigil — mirrors ghost-sigil from main site */
+.auth-sigil {
+  width: clamp(48px, 8vw, 68px);
+  height: clamp(48px, 8vw, 68px);
+  margin-bottom: var(--space-10);
+  animation: sigil-breathe 4s var(--ease-out) infinite;
+  opacity: 0.45;
+}
+.auth-sigil img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+@keyframes sigil-breathe {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(1.04); }
 }
 
-.auth-heading {
-  font-size: 13px;
+/* Section label — exact .section-label pattern */
+.auth-label {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
   font-weight: 400;
-  color: var(--accent);
-  letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  margin-bottom: var(--space-4);
 }
 
+/* Title — light display weight */
+.auth-heading {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+  line-height: 1.1;
+}
+
+/* Subtitle — italic muted */
 .auth-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: 32px;
-  line-height: 1.6;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-text-muted);
+  letter-spacing: 0.12em;
+  line-height: 1.8;
+  margin-bottom: var(--space-10);
 }
 
+/* Divider accent */
+.auth-divider {
+  width: 30px;
+  height: 1px;
+  background: var(--color-accent);
+  opacity: 0.3;
+  margin: 0 auto var(--space-10);
+}
+
+/* Input — forge-input pattern */
 .code-input-wrap {
-  position: relative;
-  margin-bottom: 12px;
+  width: 100%;
+  margin-bottom: var(--space-3);
 }
-
 .code-input {
   width: 100%;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 16px;
-  letter-spacing: 0.12em;
+  padding: var(--space-4) var(--space-5);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--text);
-  transition: border-color 200ms;
+  text-align: center;
+  color: var(--color-text);
+  transition: border-color var(--transition-interactive);
 }
-.code-input::placeholder { color: var(--text-faint); letter-spacing: 0.08em; text-transform: none; }
-.code-input:focus { border-color: var(--border-mid); }
+.code-input::placeholder {
+  color: var(--color-text-faint);
+  letter-spacing: 0.2em;
+  font-style: italic;
+}
+.code-input:focus { border-color: var(--color-accent); }
 
+/* Auth button — forge-submit pattern */
 .auth-btn {
   width: 100%;
-  padding: 14px 16px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 11px;
-  letter-spacing: 0.18em;
+  padding: var(--space-4) var(--space-10);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  transition: border-color 200ms, color 200ms;
+  color: var(--color-text-muted);
+  transition: border-color 0.4s var(--ease-out), color 0.4s var(--ease-out), background 0.4s var(--ease-out);
 }
-.auth-btn:hover { border-color: var(--border-mid); color: var(--text); }
+.auth-btn:not(:disabled):hover {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
 .auth-btn:active { opacity: 0.7; }
-.auth-btn:disabled { opacity: 0.35; pointer-events: none; }
+.auth-btn:disabled { opacity: 0.3; pointer-events: none; }
 
 .auth-error {
-  font-size: 11px;
-  color: var(--danger);
-  letter-spacing: 0.06em;
-  margin-top: 12px;
-  min-height: 16px;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-style: italic;
+  color: var(--color-danger);
+  letter-spacing: 0.12em;
+  margin-top: var(--space-4);
+  min-height: 1.4em;
+  text-align: center;
 }
 
 /* ===== POOL SCREEN ================================================ */
 #screen-pool { flex-direction: column; }
 
-/* Header */
+/* ---- Header ------------------------------------------------------ */
 .pool-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 0;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-5) 0;
 }
 .pool-header .container {
   display: flex;
@@ -155,230 +256,341 @@ a { color: inherit; text-decoration: none; }
 .pool-header-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 .pool-wordmark {
-  font-size: 10px;
-  letter-spacing: 0.22em;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-faint);
 }
 .pool-forge-name {
-  font-size: 12px;
-  color: var(--accent);
-  letter-spacing: 0.06em;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-accent);
+  letter-spacing: 0.12em;
 }
-.pool-compose-trigger {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 14px;
-  transition: border-color 200ms, color 200ms;
-}
-.pool-compose-trigger:hover { border-color: var(--border-mid); color: var(--text); }
 
-/* Compose */
+/* compose trigger — forge-submit style */
+.pool-compose-trigger {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-5);
+  transition: border-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
+}
+.pool-compose-trigger:hover {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+
+/* ---- Compose Panel ----------------------------------------------- */
 .compose-panel {
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
   overflow: hidden;
   max-height: 0;
-  transition: max-height 340ms ease, padding 340ms ease;
+  transition: max-height 380ms var(--ease-out), padding 380ms var(--ease-out);
   padding: 0;
 }
 .compose-panel.open {
-  max-height: 320px;
-  padding: 20px 0;
+  max-height: 420px;
+  padding: var(--space-8) 0;
 }
 .compose-inner {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-5);
 }
 
-/* Post type selector */
+/* Type selector — exact forge label/border pattern */
 .type-selector {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 .type-btn {
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--text-faint);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 5px 10px;
-  transition: border-color 180ms, color 180ms;
+  color: var(--color-text-faint);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-4);
+  transition: border-color var(--transition-interactive), color var(--transition-interactive);
 }
-.type-btn:hover { color: var(--text-muted); border-color: var(--border-mid); }
+.type-btn:hover {
+  color: var(--color-text-muted);
+  border-color: var(--color-border-mid);
+}
 .type-btn.selected {
-  color: var(--accent);
-  border-color: rgba(200,184,154,0.3);
+  color: var(--color-gold);
+  border-color: rgba(201,169,110,0.35);
 }
 
+/* Compose textarea — forge textarea pattern */
 .compose-textarea {
   width: 100%;
-  min-height: 80px;
+  min-height: 100px;
   resize: none;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text);
-  transition: border-color 200ms;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-style: italic;
+  line-height: 1.8;
+  color: var(--color-text);
+  transition: border-color var(--transition-interactive);
+  autocomplete: off;
 }
-.compose-textarea::placeholder { color: var(--text-faint); }
-.compose-textarea:focus { border-color: var(--border-mid); }
+.compose-textarea::placeholder {
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+.compose-textarea:focus { border-color: var(--color-accent); }
+
 .compose-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 .compose-char-count {
-  font-size: 10px;
-  color: var(--text-faint);
-  letter-spacing: 0.06em;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  letter-spacing: 0.2em;
 }
-.compose-char-count.warn { color: var(--danger); }
-.compose-submit {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 16px;
-  transition: border-color 200ms, color 200ms;
-}
-.compose-submit:hover { border-color: var(--border-mid); color: var(--text); }
-.compose-submit:disabled { opacity: 0.3; pointer-events: none; }
+.compose-char-count.warn { color: var(--color-danger); }
 
-/* Feed */
+/* Compose submit — forge-submit pattern */
+.compose-submit {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  border: 1px solid var(--color-gold);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-8);
+  transition: all 0.4s var(--ease-out);
+}
+.compose-submit:hover:not(:disabled) {
+  background: var(--color-gold);
+  color: var(--color-bg);
+}
+.compose-submit:disabled { opacity: 0.25; pointer-events: none; }
+
+/* ---- Feed -------------------------------------------------------- */
 .feed {
   flex: 1;
-  padding: 24px 0 80px;
+  padding: var(--space-8) 0 var(--space-16);
 }
 
 .feed-empty {
-  padding: 64px 0;
+  padding: clamp(var(--space-12), 8vw, var(--space-16)) 0;
   text-align: center;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-style: italic;
+  letter-spacing: 0.2em;
+  color: var(--color-text-faint);
 }
 
-.post {
-  padding: 20px 0;
-  border-bottom: 1px solid var(--border);
+.feed-loading {
+  padding: clamp(var(--space-12), 8vw, var(--space-16)) 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  animation: loading-pulse 2s var(--ease-out) infinite;
 }
-.post:last-child { border-bottom: none; }
+@keyframes loading-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.7; }
+}
+
+/* Post card — altar-style bordered box */
+.post {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-6) var(--space-6);
+  margin-bottom: var(--space-4);
+  background: var(--color-surface);
+  position: relative;
+  transition: border-color 0.4s var(--ease-out);
+}
+.post:hover { border-color: var(--color-border-mid); }
+
+/* subtle top accent line — sealed-block pattern */
+.post::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--color-text-faint), transparent);
+  opacity: 0.2;
+  pointer-events: none;
+}
 
 .post-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-5);
 }
 .post-meta-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-4);
 }
+
+/* altar-number pattern */
 .post-name {
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.45em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
+
+/* type label — nav-locked-sub style */
 .post-type-label {
-  font-size: 9px;
-  letter-spacing: 0.14em;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--text-faint);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 2px 6px;
+  color: var(--color-text-faint);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--space-3);
+  font-style: italic;
 }
+
 .post-time {
-  font-size: 10px;
-  color: var(--text-faint);
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  letter-spacing: 0.15em;
+  font-style: italic;
 }
+
+/* altar-desc pattern */
 .post-content {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text);
-  margin-bottom: 14px;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--color-text);
+  margin-bottom: var(--space-5);
   white-space: pre-wrap;
   word-break: break-word;
+  letter-spacing: 0.03em;
 }
+
 .post-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-3);
 }
 .upvote-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-  padding: 4px 0;
-  transition: color 200ms;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.3em;
+  color: var(--color-text-faint);
+  padding: var(--space-1) 0;
+  transition: color var(--transition-interactive);
   -webkit-tap-highlight-color: transparent;
 }
-.upvote-btn:hover { color: var(--text-muted); }
-.upvote-btn.voted { color: var(--accent); }
+.upvote-btn:hover { color: var(--color-text-muted); }
+.upvote-btn.voted { color: var(--color-gold); }
 .upvote-btn svg { width: 12px; height: 12px; }
 
-/* Loading */
-.feed-loading {
-  padding: 48px 0;
-  text-align: center;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
-/* Toast */
+/* ---- Toast ------------------------------------------------------- */
 .toast {
   position: fixed;
-  bottom: 24px;
+  bottom: var(--space-8);
   left: 50%;
   transform: translateX(-50%) translateY(80px);
-  background: var(--surface-2);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius);
-  padding: 10px 20px;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  transition: transform 280ms cubic-bezier(0.16,1,0.3,1);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-mid);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-8);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-style: italic;
+  letter-spacing: 0.2em;
+  color: var(--color-text-muted);
+  transition: transform 300ms var(--ease-out);
   z-index: 100;
   white-space: nowrap;
   pointer-events: none;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ---- Feed section separator -------------------------------------- */
+.feed-section-label {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  text-align: center;
+  padding: var(--space-6) 0 var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+.feed-section-label::before,
+.feed-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-divider);
+}
+
 </style>
 </head>
 <body>
 
+<!-- Grain overlay — exact from index.html -->
+<svg class="grain" aria-hidden="true">
+  <filter id="grain-filter">
+    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch"/>
+  </filter>
+  <rect width="100%" height="100%" filter="url(#grain-filter)"/>
+</svg>
+
 <!-- AUTH SCREEN -->
 <div id="screen-auth" class="screen active">
   <div class="auth-wrap">
-    <div class="auth-mark">Phaesto Atelier</div>
-    <div class="auth-heading">The Pool</div>
-    <div class="auth-sub">Enter your access code.<br />It was delivered with your piece.</div>
+
+    <!-- Sigil — mirrors ghost-screen sigil -->
+    <div class="auth-sigil" aria-hidden="true">
+      <img src="./assets/sigil-logo.png" alt="" width="68" height="68">
+    </div>
+
+    <div class="auth-label">Phaesto Atelier</div>
+    <h1 class="auth-heading">The Pool</h1>
+    <p class="auth-sub">Enter your access code.<br />It was delivered with your piece.</p>
+
+    <div class="auth-divider" aria-hidden="true"></div>
+
     <div class="code-input-wrap">
       <input
         id="code-input"
@@ -389,12 +601,13 @@ a { color: inherit; text-decoration: none; }
         autocorrect="off"
         autocapitalize="characters"
         spellcheck="false"
-        maxlength="9"
-        placeholder="PH-XXXXXX"
+        maxlength="20"
+        placeholder="PH-XXXXXXXXXXXX"
       />
     </div>
-    <button id="auth-btn" class="auth-btn" disabled>Enter</button>
-    <div id="auth-error" class="auth-error"></div>
+    <button id="auth-btn" class="auth-btn" disabled>Enter the Forge</button>
+    <div id="auth-error" class="auth-error" role="alert" aria-live="polite"></div>
+
   </div>
 </div>
 
@@ -407,7 +620,7 @@ a { color: inherit; text-decoration: none; }
         <span class="pool-wordmark">Phaesto</span>
         <span id="forge-name-display" class="pool-forge-name"></span>
       </div>
-      <button id="compose-trigger" class="pool-compose-trigger">+ Post</button>
+      <button id="compose-trigger" class="pool-compose-trigger">&#x2735; Post</button>
     </div>
   </header>
 
@@ -428,10 +641,14 @@ a { color: inherit; text-decoration: none; }
           class="compose-textarea"
           placeholder="A provocation."
           maxlength="1200"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
         ></textarea>
+
         <div class="compose-footer">
           <span id="char-count" class="compose-char-count">1200</span>
-          <button id="compose-submit" class="compose-submit" disabled>Forge</button>
+          <button id="compose-submit" class="compose-submit" disabled aria-label="Submit post">Forge</button>
         </div>
       </div>
     </div>
@@ -446,7 +663,7 @@ a { color: inherit; text-decoration: none; }
 
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
@@ -515,6 +732,7 @@ a { color: inherit; text-decoration: none; }
     const code = codeInput.value.trim().toUpperCase();
     if (!code) return;
     authBtn.disabled = true;
+    authBtn.textContent = 'Entering…';
     authError.textContent = '';
 
     try {
@@ -526,10 +744,12 @@ a { color: inherit; text-decoration: none; }
       const data = await res.json();
 
       if (!res.ok) {
-        authError.textContent = data.error === 'access_not_granted'
-          ? 'Access not yet granted.'
-          : 'Code not recognised.';
+        authError.textContent =
+          data.error === 'access_not_granted' ? 'Access not yet granted.' :
+          data.error === 'invalid_code'        ? 'Code not recognised.' :
+          'Connection failed. Try again.';
         authBtn.disabled = false;
+        authBtn.textContent = 'Enter the Forge';
         return;
       }
 
@@ -539,6 +759,7 @@ a { color: inherit; text-decoration: none; }
     } catch {
       authError.textContent = 'Connection failed. Try again.';
       authBtn.disabled = false;
+      authBtn.textContent = 'Enter the Forge';
     }
   });
 
@@ -556,8 +777,8 @@ a { color: inherit; text-decoration: none; }
   composeTrig.addEventListener('click', () => {
     composing = !composing;
     composePanel.classList.toggle('open', composing);
-    composeTrig.textContent = composing ? 'Cancel' : '+ Post';
-    if (composing) setTimeout(() => composeTA.focus(), 340);
+    composeTrig.textContent = composing ? 'Cancel' : '✶ Post';
+    if (composing) setTimeout(() => composeTA.focus(), 380);
   });
 
   composeTA.addEventListener('input', () => {
@@ -585,8 +806,7 @@ a { color: inherit; text-decoration: none; }
         charCount.classList.remove('warn');
         composing = false;
         composePanel.classList.remove('open');
-        composeTrig.textContent = '+ Post';
-        // reset type selector to provocation
+        composeTrig.textContent = '✶ Post';
         typeSelector.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
         typeSelector.querySelector('[data-type="provocation"]').classList.add('selected');
         selectedType = 'provocation';
@@ -626,11 +846,9 @@ a { color: inherit; text-decoration: none; }
     div.className  = 'post';
     div.dataset.id = post.id;
 
-    // upvoted_by_me from server seeds the local set
     if (post.upvoted_by_me) upvotedPosts.add(post.id);
     const voted = upvotedPosts.has(post.id);
 
-    // Only show type label if not provocation (provocation is the default/baseline)
     const typeLabel = post.post_type && post.post_type !== 'provocation'
       ? `<span class="post-type-label">${escHtml(post.post_type)}</span>`
       : '';
@@ -676,12 +894,17 @@ a { color: inherit; text-decoration: none; }
       const data  = await res.json();
       const posts = data.posts || [];
 
+      // sync forge_name if returned by feed
+      if (data.forge_name && !FORGE_NAME) {
+        FORGE_NAME = data.forge_name;
+        forgeDisplay.textContent = FORGE_NAME;
+      }
+
       if (posts.length === 0) {
         feedPosts.innerHTML = '<div class="feed-empty">The forge is silent.</div>';
         return;
       }
 
-      // renderPost seeds upvotedPosts from upvoted_by_me
       posts.forEach(p => feedPosts.appendChild(renderPost(p)));
     } catch {
       feedLoading.style.display = 'none';
@@ -696,7 +919,6 @@ a { color: inherit; text-decoration: none; }
     const postId = btn.dataset.postId;
     if (upvotedPosts.has(postId)) return;
 
-    // Optimistic update
     upvotedPosts.add(postId);
     btn.classList.add('voted');
     const countEl = btn.querySelector('span');
@@ -709,7 +931,6 @@ a { color: inherit; text-decoration: none; }
         body:    JSON.stringify({ token: SESSION_TOKEN, post_id: postId })
       });
       if (!res.ok) {
-        // Rollback
         upvotedPosts.delete(postId);
         btn.classList.remove('voted');
         countEl.textContent = parseInt(countEl.textContent, 10) - 1;
