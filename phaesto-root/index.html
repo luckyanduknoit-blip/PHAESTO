@@ -197,6 +197,50 @@
 <style>
   body { background: #0A0A0A; }
   #ghost-screen { background: #0A0A0A; }
+
+  /* ── Idle: slow float + gentle spin on the sigil button ── */
+  @keyframes sigil-idle {
+    0%   { transform: translateY(0px)   rotate(0deg);   }
+    25%  { transform: translateY(-5px)  rotate(4deg);   }
+    50%  { transform: translateY(0px)   rotate(0deg);   }
+    75%  { transform: translateY(-3px)  rotate(-3deg);  }
+    100% { transform: translateY(0px)   rotate(0deg);   }
+  }
+
+  /* Applied to the IMG inside the button so it doesn't fight app.js
+     which adds .is-spinning on the button itself */
+  #sigil-trigger:not(.is-spinning) .sigil-trigger-img {
+    animation: sigil-idle 4.8s ease-in-out infinite;
+    transform-origin: center center;
+  }
+
+  /* Stop idle the instant the click spin starts */
+  #sigil-trigger.is-spinning .sigil-trigger-img {
+    animation: none;
+  }
+
+  /* Tap hint label beneath the sigil button */
+  #sigil-hint {
+    position: fixed;
+    /* sits just below the sigil button — adjust top to match your button position */
+    top: calc(var(--sigil-top, 24px) + 52px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 10px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.18);
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+    z-index: 1000;
+    transition: opacity 0.6s ease;
+  }
+  /* hide after first click */
+  #sigil-hint.hint-hidden {
+    opacity: 0;
+  }
 </style>
 </head>
 <body>
@@ -218,6 +262,9 @@
 <button class="sigil-trigger" id="sigil-trigger" aria-label="Open navigation" aria-expanded="false">
   <img class="sigil-trigger-img" src="./assets/sigil-logo-nav.png" alt="" width="36" height="36">
 </button>
+
+<!-- Subtle tap hint — fades after first click -->
+<div id="sigil-hint" aria-hidden="true">tap to enter</div>
 
 <nav class="nav-overlay" id="nav-overlay" role="navigation" aria-label="Main navigation">
   <div class="nav-overlay-inner">
@@ -278,10 +325,7 @@
         <h1 class="hero-title">Phaēsto</h1>
         <p class="hero-subtitle">Some things were never lost</p>
       </div>
-      <div class="hero-scroll-hint" aria-hidden="true">
-        <span>Enter</span>
-        <div class="scroll-line"></div>
-      </div>
+      <!-- hero-scroll-hint (ENTER + arrow) removed -->
     </section>
 
     <section class="section" id="statement">
@@ -526,5 +570,18 @@
 
 <script src="./app.js" defer></script>
 <script src="nfc.js" defer></script>
+
+<!-- Hide the tap hint on first sigil click -->
+<script>
+  (function () {
+    var hint = document.getElementById('sigil-hint');
+    var btn  = document.getElementById('sigil-trigger');
+    if (!hint || !btn) return;
+    btn.addEventListener('click', function onFirst() {
+      hint.classList.add('hint-hidden');
+      btn.removeEventListener('click', onFirst);
+    }, { once: true });
+  })();
+</script>
 </body>
 </html>
