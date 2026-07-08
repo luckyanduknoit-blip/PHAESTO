@@ -209,7 +209,7 @@
         .result-h{font-family:var(--font-display);font-weight:500;font-size:.78rem;
           letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:.9rem}
         .result-r{display:flex;gap:.6rem;margin-bottom:.4rem;font-size:.74rem;align-items:baseline}
-        .result-k{min-width:90px;font-size:.54rem;font-weight:600;text-transform:uppercase;
+        .result-k{min-width:110px;font-size:.54rem;font-weight:600;text-transform:uppercase;
           letter-spacing:.08em;color:var(--text-muted);flex-shrink:0;padding-top:.08rem}
         .result-v{color:var(--text);word-break:break-all}
         .result-url{color:var(--gold);font-size:.74rem;word-break:break-all}
@@ -359,7 +359,7 @@
                     <div class="f-field full"><label class="f-label" for="f-note">Founder Note <span class="opt">(optional)</span></label><textarea class="f-ta" id="f-note" placeholder="A note to embed with this piece…"></textarea></div>
                     <div class="f-actions">
                         <button type="submit" class="btn btn-p" id="mint-btn">Mint Piece</button>
-                        <span class="f-hint">Inserts to DB &middot; writes transfer log &middot; sends certificate email</span>
+                        <span class="f-hint">All writes server-side &middot; generates pool code &amp; referral &middot; sends holder email</span>
                     </div>
                 </form>
                 <div class="result" id="mint-result">
@@ -368,6 +368,8 @@
                     <div class="result-r"><span class="result-k">Piece Name</span><span class="result-v" id="res-name"></span></div>
                     <div class="result-r"><span class="result-k">Owner</span><span class="result-v" id="res-owner"></span></div>
                     <div class="result-r"><span class="result-k">Verify URL</span><span class="result-url" id="res-url"></span></div>
+                    <div class="result-r"><span class="result-k">Pool Code</span><span class="result-v" id="res-pool-code"></span></div>
+                    <div class="result-r"><span class="result-k">Referral Code</span><span class="result-v" id="res-referral-code"></span></div>
                     <div class="result-r"><span class="result-k">Email</span><span class="result-v" id="res-email-status"></span></div>
                 </div>
             </div></div></div>
@@ -401,8 +403,6 @@
 
 var SUPABASE_URL  = 'https://txepvzhmllhxpqeboodi.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4ZXB2emhtbGxoeHBxZWJvb2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTQ1MzgsImV4cCI6MjA5MDQ5MDUzOH0.hFCQ6jsBBFIFPM4whMNW7Z1HOYJJ9vX-zN-B5dEuJso';
-// ADMIN_KEY: set window.__PHAESTO_ADMIN_KEY on the server before this script loads.
-// If not set, any non-empty input is accepted (dev mode).
 var ADMIN_KEY = (typeof window.__PHAESTO_ADMIN_KEY !== 'undefined') ? window.__PHAESTO_ADMIN_KEY : '';
 
 var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -481,43 +481,38 @@ async function handleDecision(appId,decision){
     }
 }
 
+// ---- MINT: single Edge Function call, all writes server-side ----
 async function handleMintPiece(fd){
     var mintBtn=$('mint-btn');mintBtn.disabled=true;mintBtn.textContent='Minting\u2026';
     try{
-        var now=new Date().toISOString();
-        var payload={piece_id:fd.piece_id,piece_name:fd.piece_name,edition_number:fd.edition_number,forge_date:fd.forge_date,owner_email:fd.owner_email,minted_at:now};
-
-        // INSERT into pieces
-        var pr=await sb.from('pieces').upsert([{
-            piece_id:fd.piece_id,piece_name:fd.piece_name,weight_grams:fd.weight,
-            edition_number:fd.edition_number,forge_date:fd.forge_date,
-            founder_note:fd.founder_note||null
-        }],{onConflict:'piece_id'}).select().single();
-        if(pr.error)throw pr.error;
-
-        // INSERT transfer_log (initial mint)
-        await sb.from('transfer_log').insert([{
-            piece_id:fd.piece_id,piece_name:fd.piece_name,
-            from_owner_email:'vault',from_owner:'\u2014 (vault)',
-            to_owner_email:fd.owner_email,to_owner:fd.owner_email,
-            transferred_at:now,tx_type:'initial_mint'
-        }]);
-
-        // Call Edge Function for signed token + cert email
         var fnRes=await fetch(SUPABASE_URL+'/functions/v1/send-email',{
             method:'POST',
             headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON},
-            body:JSON.stringify({type:'mint_certificate',payload:payload})
+            body:JSON.stringify({
+                type:'mint_piece',
+                payload:{
+                    piece_id:fd.piece_id,
+                    piece_name:fd.piece_name,
+                    weight:fd.weight,
+                    edition_number:fd.edition_number,
+                    forge_date:fd.forge_date,
+                    owner_name:fd.owner_name,
+                    owner_email:fd.owner_email,
+                    founder_note:fd.founder_note||null
+                }
+            })
         });
-        var fnData=fnRes.ok?await fnRes.json():{};
-        var verifyUrl=fnData.verify_url||'https://phaestoatelier.com/verify/'+btoa(JSON.stringify({id:fd.piece_id,ed:fd.edition_number})).slice(0,48);
+        var fnData=await fnRes.json();
+        if(!fnRes.ok)throw new Error(fnData.error||'Edge Function error');
 
         $('res-id').textContent=fd.piece_id;
         $('res-name').textContent=fd.piece_name;
         $('res-owner').textContent=fd.owner_name+' <'+fd.owner_email+'>';
-        $('res-url').textContent=verifyUrl;
-        $('res-email-status').textContent=fnRes.ok?'Certificate sent \u2713':'DB saved; email pending';
-        $('res-email-status').style.color=fnRes.ok?'var(--accept)':'var(--gold-dim)';
+        $('res-url').textContent=fnData.verify_url||'';
+        $('res-pool-code').textContent=fnData.pool_login_code||'\u2014';
+        $('res-referral-code').textContent=fnData.referral_code||'\u2014';
+        $('res-email-status').textContent=fnData.email_sent?'Holder acknowledgment sent \u2713':'DB saved; email pending';
+        $('res-email-status').style.color=fnData.email_sent?'var(--accept)':'var(--gold-dim)';
 
         var panel=$('mint-result');
         panel.classList.remove('show');void panel.offsetWidth;panel.classList.add('show');
