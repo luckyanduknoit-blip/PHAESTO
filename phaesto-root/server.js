@@ -24,9 +24,6 @@ app.use(express.json());
 
 // =============================================================
 // FORGE NAME GENERATION
-// Two-word pseudonym: [Adjective] + [Noun]
-// Generated once at pool entry, permanent, not publicly linkable
-// to cast number or email.
 // =============================================================
 
 const FORGE_ADJECTIVES = [
@@ -44,7 +41,6 @@ const FORGE_NOUNS = [
 ];
 
 async function generateForgeName() {
-  // Try up to 10 times to get a unique name
   for (let i = 0; i < 10; i++) {
     const adj  = FORGE_ADJECTIVES[Math.floor(Math.random() * FORGE_ADJECTIVES.length)];
     const noun = FORGE_NOUNS[Math.floor(Math.random() * FORGE_NOUNS.length)];
@@ -56,21 +52,19 @@ async function generateForgeName() {
       .single();
     if (!existing) return name;
   }
-  // Fallback: append short hex to guarantee uniqueness
   const adj  = FORGE_ADJECTIVES[Math.floor(Math.random() * FORGE_ADJECTIVES.length)];
   const noun = FORGE_NOUNS[Math.floor(Math.random() * FORGE_NOUNS.length)];
   return `${adj} ${noun} ${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 }
 
 // =============================================================
-// FORGE ENTRY QUESTION (Step 5)
-// Single source of truth — change this one line to update sitewide.
+// FORGE QUESTION
 // =============================================================
 
 const FORGE_QUESTION = 'What will you devote yourself to until it is made real?';
 
 // =============================================================
-// HELPER: Validate NFC token → return ownership row
+// HELPER: Validate NFC token
 // =============================================================
 
 async function validateToken(token) {
@@ -90,7 +84,7 @@ async function validateToken(token) {
 }
 
 // =============================================================
-// EXISTING ROUTES — UNTOUCHED
+// API ROUTES
 // =============================================================
 
 app.get('/api/piece/:token', async (req, res) => {
@@ -119,7 +113,6 @@ app.get('/api/piece/:token', async (req, res) => {
       .eq('piece_id', piece_id)
       .order('transferred_at', { ascending: false });
 
-    // Fetch referral code for verify page display
     const { data: referral } = await supabase
       .from('referrals')
       .select('referral_code, used')
@@ -224,9 +217,6 @@ app.post('/api/transfer/claim', async (req, res) => {
 // POOL ROUTES
 // =============================================================
 
-// POST /pool/auth
-// Exchange pool_login_code for session. If pool_access is true
-// but forge_name is not yet set, generate it now.
 app.post('/pool/auth', async (req, res) => {
   try {
     const { login_code } = req.body;
@@ -242,7 +232,6 @@ app.post('/pool/auth', async (req, res) => {
     if (error || !ownership) return res.status(401).json({ error: 'invalid_code' });
     if (!ownership.pool_access) return res.status(403).json({ error: 'access_not_granted' });
 
-    // Generate forge name on first pool entry if not yet assigned
     let forgeName = ownership.forge_name;
     if (!forgeName) {
       forgeName = await generateForgeName();
@@ -262,10 +251,6 @@ app.post('/pool/auth', async (req, res) => {
   }
 });
 
-// POST /pool/activate
-// Called when admin grants pool access to a holder.
-// Flips pool_access = true. Forge name is assigned lazily on first /pool/auth.
-// Requires admin secret header.
 app.post('/pool/activate', async (req, res) => {
   try {
     const adminSecret = req.headers['x-admin-secret'];
@@ -296,9 +281,6 @@ app.post('/pool/activate', async (req, res) => {
   }
 });
 
-// POST /pool/post
-// Accepts post_type from body: provocation | question | struggle | vote
-// Defaults to 'provocation' if not provided or invalid.
 const VALID_POST_TYPES = ['provocation', 'question', 'struggle', 'vote'];
 
 app.post('/pool/post', async (req, res) => {
@@ -333,9 +315,6 @@ app.post('/pool/post', async (req, res) => {
   }
 });
 
-// GET /pool/feed
-// Returns visible posts, newest first. Includes whether current
-// holder has already upvoted each post.
 app.get('/pool/feed', async (req, res) => {
   try {
     const authHeader = req.headers['authorization'] || '';
@@ -354,7 +333,6 @@ app.get('/pool/feed', async (req, res) => {
       .limit(50);
     if (fetchErr) return res.status(500).json({ error: 'feed_fetch_failed' });
 
-    // Fetch this holder's upvotes to mark which posts they've already voted on
     const postIds = (posts || []).map(p => p.id);
     let upvotedIds = new Set();
     if (postIds.length > 0) {
@@ -380,9 +358,6 @@ app.get('/pool/feed', async (req, res) => {
   }
 });
 
-// POST /pool/upvote
-// Deduplication via pool_upvotes unique constraint (holder_token + post_id).
-// Increments upvotes counter on pool_posts.
 app.post('/pool/upvote', async (req, res) => {
   try {
     const { token, post_id } = req.body;
@@ -392,7 +367,6 @@ app.post('/pool/upvote', async (req, res) => {
     if (!ownership) return res.status(401).json({ error: 'invalid_token' });
     if (!ownership.pool_access) return res.status(403).json({ error: 'pool_access_denied' });
 
-    // Check duplicate via holder_token (more secure than forge_name)
     const { data: existing } = await supabase
       .from('pool_upvotes')
       .select('id')
@@ -406,7 +380,6 @@ app.post('/pool/upvote', async (req, res) => {
       .insert({ holder_token: token, post_id });
     if (upvoteErr) return res.status(500).json({ error: 'upvote_failed' });
 
-    // Increment counter — try RPC first, fall back to read-modify-write
     const { error: incrErr } = await supabase.rpc('increment_upvotes', { post_id });
     if (incrErr) {
       const { data: post } = await supabase
@@ -425,12 +398,9 @@ app.post('/pool/upvote', async (req, res) => {
 });
 
 // =============================================================
-// STEP 5 — REFERRAL ENTRY ROUTES
+// REFERRAL ENTRY ROUTES
 // =============================================================
 
-// GET /enter/:referral_code
-// Validates code, returns the forge question.
-// 404 = never existed. 410 = already used.
 app.get('/enter/:referral_code', async (req, res) => {
   const { referral_code } = req.params;
 
@@ -446,9 +416,6 @@ app.get('/enter/:referral_code', async (req, res) => {
   return res.status(200).json({ question: FORGE_QUESTION });
 });
 
-// POST /enter/:referral_code
-// Atomically locks the code, inserts forge_entry, sends two emails.
-// Does NOT auto-approve — founder reviews forge_entries manually.
 app.post('/enter/:referral_code', async (req, res) => {
   const { referral_code } = req.params;
   const { email, response_text } = req.body;
@@ -476,7 +443,7 @@ app.post('/enter/:referral_code', async (req, res) => {
   }
 
   await resend.emails.send({
-    from: 'forge@.phaestoatelier.com',
+    from: 'forge@phaestoatelier.com',
     to: email,
     subject: 'The Forge Has Received Your Entry',
     html: `
@@ -490,7 +457,7 @@ app.post('/enter/:referral_code', async (req, res) => {
   });
 
   await resend.emails.send({
-    from: 'forge@.phaestoatelier.com',
+    from: 'forge@phaestoatelier.com',
     to: 'lucky@phaestoatelier.com',
     subject: 'Forge Entry — Review Required',
     html: `
@@ -501,9 +468,6 @@ app.post('/enter/:referral_code', async (req, res) => {
         <p style="margin-top:8px;padding:16px;background:#161616;border:1px solid #222;border-radius:6px;line-height:1.7;">
           ${response_text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
         </p>
-        <p style="margin-top:24px;font-size:13px;color:#444;">
-          To approve: flip <code style="color:#666;">approved = true</code> and set <code style="color:#666;">approved_at = now()</code> in forge_entries, then call <code style="color:#666;">POST /pool/activate</code> with their nfc_token.
-        </p>
       </div>
     `
   });
@@ -512,9 +476,7 @@ app.post('/enter/:referral_code', async (req, res) => {
 });
 
 // =============================================================
-// STEP 5 — CRON: Daily referral generation for approved holders
-// Render cron hits GET /cron/referrals daily with x-admin-secret.
-// Finds holders approved 30+ days ago with no referral code yet.
+// CRON: Daily referral generation
 // =============================================================
 
 app.get('/cron/referrals', async (req, res) => {
@@ -559,7 +521,7 @@ app.get('/cron/referrals', async (req, res) => {
       .eq('nfc_token', owner.nfc_token);
 
     await resend.emails.send({
-      from: 'forge@.phaestoatelier.com',
+      from: 'forge@phaestoatelier.com',
       to: entry.email,
       subject: 'The Forge Has Extended Your Reach',
       html: `
@@ -579,11 +541,7 @@ app.get('/cron/referrals', async (req, res) => {
 });
 
 // =============================================================
-// STEP 6 — RANDOM FORGE CAST (Admin trigger)
-// POST /admin/forge-cast — requires x-admin-secret header.
-// Selects random eligible holder, logs to forge_events, emails winner.
-// Eligible = current owner + active in last 60 days + not yet received.
-// Full cycle: if all holders received, resets everyone for next cycle.
+// ADMIN: Forge Cast
 // =============================================================
 
 app.post('/admin/forge-cast', async (req, res) => {
@@ -623,7 +581,7 @@ app.post('/admin/forge-cast', async (req, res) => {
     }
 
     return res.status(200).json({
-      message: 'No eligible holders. Active holders may have all received a cast, or no one has been active in 60 days.'
+      message: 'No eligible holders.'
     });
   }
 
@@ -641,7 +599,7 @@ app.post('/admin/forge-cast', async (req, res) => {
   });
 
   await resend.emails.send({
-    from: 'forge@.phaestoatelier.com',
+    from: 'forge@phaestoatelier.com',
     to: winner.email,
     subject: 'The Forge Has Chosen',
     html: `
@@ -670,11 +628,22 @@ app.post('/admin/forge-cast', async (req, res) => {
 });
 
 // =============================================================
-// STATIC + SPA FALLBACK — UNTOUCHED
+// STATIC FILES
 // =============================================================
 
 app.use(express.static(path.join(__dirname), { extensions: ['html'] }));
 
+// NFC verify page — must serve verify.html, not index.html
+app.get('/verify/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, 'verify.html'));
+});
+
+// Transfer claim page — also needs verify.html (nfc.js handles /transfer/claim/* path)
+app.get('/transfer/claim/:code', (req, res) => {
+  res.sendFile(path.join(__dirname, 'verify.html'));
+});
+
+// SPA fallback for everything else
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
