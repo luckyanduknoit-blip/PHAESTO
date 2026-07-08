@@ -198,33 +198,28 @@
   body { background: #0A0A0A; }
   #ghost-screen { background: #0A0A0A; }
 
-  /* Idle: slow float + gentle rock. Targets the IMG so it never
-     collides with style.css which targets the button for .spinning */
+  /* ── Sigil idle: slow float + gentle rock ── */
   @keyframes sigil-idle {
-    0%   { transform: translateY(0px)  rotate(0deg);  }
-    25%  { transform: translateY(-5px) rotate(4deg);  }
-    50%  { transform: translateY(0px)  rotate(0deg);  }
-    75%  { transform: translateY(-3px) rotate(-3deg); }
-    100% { transform: translateY(0px)  rotate(0deg);  }
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33%       { transform: translateY(-5px) rotate(2deg); }
+    66%       { transform: translateY(-2px) rotate(-1.5deg); }
   }
 
-  /* Run idle only when the button does NOT have .spinning */
+  /* Idle runs only when .spinning is absent.
+     The .spinning rule is intentionally omitted here —
+     style.css already owns it and this avoids the
+     same-specificity source-order override that killed the spin. */
   #sigil-trigger:not(.spinning) .sigil-trigger-img {
-    animation: sigil-idle 4.8s ease-in-out infinite;
-    transform-origin: center center;
+    animation: sigil-idle 5s ease-in-out infinite;
   }
 
-  /* The moment app.js adds .spinning, idle stops immediately
-     and style.css takes over with sigil-click-spin on the same img */
-  #sigil-trigger.spinning .sigil-trigger-img {
-    animation: none;
-  }
-
-  /* Tap hint */
+  /* ── Hint: centered directly under the 36×36 button ── */
   #sigil-hint {
     position: fixed;
-    top: calc(24px + 46px);
-    left: 30px;
+    top: calc(24px + 36px + 8px);
+    left: 24px;
+    width: 36px;
+    text-align: center;
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 9px;
     letter-spacing: 0.26em;
@@ -236,10 +231,15 @@
     z-index: 200;
     transition: opacity 0.8s ease;
   }
+
   #sigil-hint.hint-hidden { opacity: 0; }
 
   @media (max-width: 768px) {
-    #sigil-hint { top: calc(16px + 40px); left: 16px; }
+    #sigil-hint {
+      top: calc(16px + 30px + 6px);
+      left: 16px;
+      width: 30px;
+    }
   }
 </style>
 </head>
