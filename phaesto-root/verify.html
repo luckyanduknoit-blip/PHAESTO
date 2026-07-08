@@ -20,6 +20,13 @@
   </style>
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Init client so nfc.js can find window._phaestoSupabase -->
+  <script>
+    window._phaestoSupabase = supabase.createClient(
+      'https://txepvzhmllhxpqeboodi.supabase.co',
+      'sb_publishable_KCrhRVtb3QYJY8MPjgZb5g_iT4O8DNi'
+    );
+  </script>
 </head>
 <body>
   <!-- nfc.js renders everything into the body dynamically -->
