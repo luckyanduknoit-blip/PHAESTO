@@ -221,59 +221,48 @@
   }
 
   // ========== VERIFY FLOW ==========
-  // Supports both:
-  //   /verify/TOKEN          (standalone verify.html served at this path)
-  //   page loaded IS verify.html and token is in the URL path
   if (pathname.indexOf('/verify/') !== -1) {
     var verifyMatch = pathname.match(/\/verify\/([^/?#]+)/);
     if (verifyMatch) {
       var token = verifyMatch[1];
 
-      // Wait for Supabase client to be available (app.js initialises it)
       function waitForSupabase(cb, tries) {
         tries = tries || 0;
         if (window._phaestoSupabase) { cb(window._phaestoSupabase); return; }
-        if (tries > 20) return; // give up after ~2s, silent failure
+        if (tries > 20) return;
         setTimeout(function () { waitForSupabase(cb, tries + 1); }, 100);
       }
 
       waitForSupabase(function (sb) {
-        // Decode the base64 token the edge function mints
         var decoded;
-        try {
-          decoded = JSON.parse(atob(token));
-        } catch (e) {
-          return; // invalid token — wall never opens
-        }
-
+        try { decoded = JSON.parse(atob(token)); } catch (e) { return; }
         if (!decoded || !decoded.id) return;
 
-        // Query pieces + current owner join
         sb.from('pieces')
-          .select('id, piece_name, metal, weight_grams, forge_date, edition_number, founder_note')
+          .select('id, piece_id, piece_name, metal, weight_grams, forge_date, edition_number, founder_note')
           .eq('id', decoded.id)
           .single()
           .then(function (pieceRes) {
             if (pieceRes.error || !pieceRes.data) return;
             var piece = pieceRes.data;
 
-            sb.from('piece_owners')
-              .select('owner_name, owner_email, claimed_at')
-              .eq('piece_id', decoded.id)
-              .order('claimed_at', { ascending: false })
-              .limit(1)
+            // FIX: was piece_owners — real table is ownership
+            sb.from('ownership')
+              .select('owner_name, owner_email, claimed_at, piece_id')
+              .eq('piece_id', piece.piece_id)
+              .eq('is_current_owner', true)
               .single()
               .then(function (ownerRes) {
-                // Owner may not exist yet — still show the piece
-                var owner = (ownerRes.data) ? {
+                var owner = ownerRes.data ? {
                   name:       ownerRes.data.owner_name,
                   email:      ownerRes.data.owner_email,
-                  claimed_at: ownerRes.data.claimed_at
+                  claimed_at: ownerRes.data.claimed_at,
+                  piece_id:   ownerRes.data.piece_id
                 } : null;
 
                 sb.from('transfer_log')
                   .select('transferred_at, from_owner_email, to_owner_email')
-                  .eq('piece_id', decoded.id)
+                  .eq('piece_id', piece.piece_id)
                   .order('transferred_at', { ascending: true })
                   .then(function (txRes) {
                     var transfers = txRes.data || [];
@@ -309,6 +298,7 @@
 
         this.textContent = 'Claiming\u2026';
         this.disabled = true;
+        var btn = this;
 
         function waitForSupabase(cb, tries) {
           tries = tries || 0;
@@ -318,10 +308,12 @@
         }
 
         waitForSupabase(function (sb) {
-          // Look up the transfer code
-          sb.from('transfer_codes')
-            .select('id, piece_id, expires_at, used_at')
-            .eq('code', transferCode)
+          // FIX: was transfer_codes table — transfer code lives on the ownership row
+          sb.from('ownership')
+            .select('id, piece_id, transfer_code, transfer_code_expires_at, transfer_pending, owner_email')
+            .eq('transfer_code', transferCode)
+            .eq('transfer_pending', true)
+            .eq('is_current_owner', true)
             .single()
             .then(function (res) {
               if (res.error || !res.data) {
@@ -329,57 +321,83 @@
                 form.appendChild(el('div', { class: 'overlay-error', textContent: 'This transfer code is invalid or has expired.' }));
                 return;
               }
-              var tc = res.data;
-              if (tc.used_at || new Date(tc.expires_at) < new Date()) {
+              var row = res.data;
+              if (new Date(row.transfer_code_expires_at) < new Date()) {
                 form.innerHTML = '';
-                form.appendChild(el('div', { class: 'overlay-error', textContent: 'This transfer code has already been used or has expired.' }));
+                form.appendChild(el('div', { class: 'overlay-error', textContent: 'This transfer code has expired.' }));
                 return;
               }
 
-              // Mark code used + insert new owner
               var now = new Date().toISOString();
-              var btn = document.getElementById('claim-submit');
+              var prevOwnerId = row.id;
+              var prevOwnerEmail = row.owner_email;
+              var pieceId = row.piece_id;
 
-              Promise.all([
-                sb.from('transfer_codes').update({ used_at: now }).eq('id', tc.id),
-                sb.from('piece_owners').insert({
-                  piece_id:    tc.piece_id,
-                  owner_name:  name,
-                  owner_email: email,
-                  claimed_at:  now
+              // 1. Mark old owner row as no longer current + clear transfer fields
+              sb.from('ownership')
+                .update({
+                  is_current_owner:          false,
+                  transfer_pending:          false,
+                  transfer_code:             null,
+                  transfer_code_expires_at:  null,
+                  transfer_to_email:         null
                 })
-              ]).then(function (results) {
-                var err = results.find(function (r) { return r.error; });
-                if (err) {
-                  if (btn) { btn.textContent = 'Claim Ownership'; btn.disabled = false; }
-                  form.insertBefore(
-                    el('div', { class: 'overlay-error', textContent: 'Something went wrong. Please try again.' }),
-                    btn
-                  );
-                  return;
-                }
+                .eq('id', prevOwnerId)
+                .then(function (updateRes) {
+                  if (updateRes.error) {
+                    btn.textContent = 'Claim Ownership'; btn.disabled = false;
+                    form.insertBefore(el('div', { class: 'overlay-error', textContent: 'Something went wrong. Please try again.' }), btn);
+                    return;
+                  }
 
-                // Build new verify token
-                var newToken = btoa(JSON.stringify({
-                  id: tc.piece_id,
-                  ts: now
-                }));
-                var verifyUrl = window.location.origin + '/verify/' + newToken;
+                  // 2. Insert new owner row
+                  sb.from('ownership')
+                    .insert({
+                      piece_id:        pieceId,
+                      owner_name:      name,
+                      owner_email:     email,
+                      claimed_at:      now,
+                      is_current_owner: true
+                    })
+                    .then(function (insertRes) {
+                      if (insertRes.error) {
+                        btn.textContent = 'Claim Ownership'; btn.disabled = false;
+                        form.insertBefore(el('div', { class: 'overlay-error', textContent: 'Something went wrong. Please try again.' }), btn);
+                        return;
+                      }
 
-                form.remove();
-                var success = el('div', { class: 'claim-success' }, [
-                  el('div', { class: 'claim-success-title', textContent: 'Ownership recorded. Your verification link:' }),
-                  el('div', { class: 'claim-success-link', id: 'claim-link', textContent: verifyUrl }),
-                  el('button', { class: 'claim-btn', id: 'claim-copy', textContent: 'Copy Link' })
-                ]);
-                overlay.appendChild(success);
+                      // 3. Write transfer_log entry
+                      sb.from('transfer_log').insert({
+                        piece_id:          pieceId,
+                        from_owner_email:  prevOwnerEmail,
+                        to_owner_email:    email,
+                        to_owner:          name,
+                        transferred_at:    now
+                      });
 
-                document.getElementById('claim-copy').addEventListener('click', function () {
-                  navigator.clipboard.writeText(verifyUrl).then(function () {
-                    document.getElementById('claim-copy').textContent = 'Copied';
-                  });
+                      // 4. Build new verify token and show success
+                      // Need pieces.id (uuid) for the token — fetch it via piece_id
+                      sb.from('pieces').select('id').eq('piece_id', pieceId).single()
+                        .then(function (pRes) {
+                          var newToken = btoa(JSON.stringify({ id: pRes.data ? pRes.data.id : pieceId, ts: now }));
+                          var verifyUrl = window.location.origin + '/verify/' + newToken;
+
+                          form.remove();
+                          var success = el('div', { class: 'claim-success' }, [
+                            el('div', { class: 'claim-success-title', textContent: 'Ownership recorded. Your verification link:' }),
+                            el('div', { class: 'claim-success-link', id: 'claim-link', textContent: verifyUrl }),
+                            el('button', { class: 'claim-btn', id: 'claim-copy', textContent: 'Copy Link' })
+                          ]);
+                          overlay.appendChild(success);
+
+                          document.getElementById('claim-copy').addEventListener('click', function () {
+                            navigator.clipboard.writeText(verifyUrl).then(function () {
+                              document.getElementById('claim-copy').textContent = 'Copied';
+                            });
+                          });
+                        });
+                    });
                 });
-              });
             });
         });
       });
@@ -423,7 +441,6 @@
       inner.appendChild(el('div', { class: 'cert-founder-note', textContent: '\u201C' + piece.founder_note + '\u201D' }));
     }
 
-    // Transfer history
     if (transfers && transfers.length > 0) {
       var transferSection = el('div', { class: 'cert-transfers' });
       transferSection.appendChild(el('div', { class: 'cert-transfers-title', textContent: 'Transfer History' }));
@@ -436,14 +453,12 @@
       inner.appendChild(transferSection);
     }
 
-    // Transfer ownership button
     var transferBtn = el('button', { class: 'cert-btn', id: 'cert-transfer-btn', textContent: 'Transfer Ownership' });
     inner.appendChild(transferBtn);
 
     cert.appendChild(inner);
     document.body.insertBefore(cert, document.body.firstChild);
 
-    // Transfer initiation form
     transferBtn.addEventListener('click', function () {
       if (document.getElementById('cert-transfer-form')) return;
       var formDiv = el('div', { class: 'cert-transfer-form', id: 'cert-transfer-form' }, [
@@ -458,6 +473,7 @@
 
         this.textContent = 'Generating\u2026';
         this.disabled = true;
+        var genBtn = this;
 
         function waitForSupabase(cb, tries) {
           tries = tries || 0;
@@ -467,12 +483,11 @@
         }
 
         waitForSupabase(function (sb) {
-          // Verify seller email matches current owner
-          sb.from('piece_owners')
-            .select('owner_email')
-            .eq('piece_id', owner ? owner.piece_id || piece.id : piece.id)
-            .order('claimed_at', { ascending: false })
-            .limit(1)
+          // FIX: was piece_owners — real table is ownership
+          sb.from('ownership')
+            .select('id, owner_email')
+            .eq('piece_id', piece.piece_id)
+            .eq('is_current_owner', true)
             .single()
             .then(function (ownerCheck) {
               if (ownerCheck.error || !ownerCheck.data) {
@@ -482,26 +497,27 @@
               }
               if (ownerCheck.data.owner_email.toLowerCase() !== sellerEmail.toLowerCase()) {
                 formDiv.innerHTML = '';
-                formDiv.appendChild(el('div', { class: 'cert-msg-error', textContent: 'Could not generate transfer code. Ensure the email matches the current owner.' }));
+                formDiv.appendChild(el('div', { class: 'cert-msg-error', textContent: 'Email does not match the current owner.' }));
                 return;
               }
 
-              // Generate a random 8-char code
               var code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
                 .map(function (b) { return b.toString(16).padStart(2, '0'); })
                 .join('').toUpperCase().slice(0, 8);
 
               var expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-              sb.from('transfer_codes')
-                .insert({
-                  piece_id:    piece.id,
-                  code:        code,
-                  seller_email: sellerEmail,
-                  expires_at:  expiresAt
+              // FIX: was transfer_codes insert — write directly onto the ownership row
+              sb.from('ownership')
+                .update({
+                  transfer_code:            code,
+                  transfer_code_expires_at: expiresAt,
+                  transfer_pending:         true
                 })
+                .eq('id', ownerCheck.data.id)
                 .then(function (res) {
                   if (res.error) {
+                    genBtn.textContent = 'Generate Transfer Code'; genBtn.disabled = false;
                     formDiv.innerHTML = '';
                     formDiv.appendChild(el('div', { class: 'cert-msg-error', textContent: 'Could not generate transfer code. Please try again.' }));
                     return;
