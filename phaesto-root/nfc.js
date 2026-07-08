@@ -221,82 +221,169 @@
   }
 
   // ========== VERIFY FLOW ==========
-  if (pathname.indexOf('/verify/') === 0 && pathname.length > '/verify/'.length) {
-    var token = pathname.slice('/verify/'.length);
+  // Supports both:
+  //   /verify/TOKEN          (standalone verify.html served at this path)
+  //   page loaded IS verify.html and token is in the URL path
+  if (pathname.indexOf('/verify/') !== -1) {
+    var verifyMatch = pathname.match(/\/verify\/([^/?#]+)/);
+    if (verifyMatch) {
+      var token = verifyMatch[1];
 
-    // Fetch silently. No overlay, no spinner, no indication anything is happening.
-    // If the token is invalid the site just loads normally — the wall never opens.
-    fetch('/api/piece/' + encodeURIComponent(token))
-      .then(function (r) {
-        if (!r.ok) throw new Error('invalid');
-        return r.json();
-      })
-      .then(function (data) {
-        // Valid token — the wall opens. Inject styles + certificate.
-        injectStyles();
-        renderCertificate(data, token);
-      })
-      .catch(function () {
-        // Silent failure. Nothing happened. You were never here.
+      // Wait for Supabase client to be available (app.js initialises it)
+      function waitForSupabase(cb, tries) {
+        tries = tries || 0;
+        if (window._phaestoSupabase) { cb(window._phaestoSupabase); return; }
+        if (tries > 20) return; // give up after ~2s, silent failure
+        setTimeout(function () { waitForSupabase(cb, tries + 1); }, 100);
+      }
+
+      waitForSupabase(function (sb) {
+        // Decode the base64 token the edge function mints
+        var decoded;
+        try {
+          decoded = JSON.parse(atob(token));
+        } catch (e) {
+          return; // invalid token — wall never opens
+        }
+
+        if (!decoded || !decoded.id) return;
+
+        // Query pieces + current owner join
+        sb.from('pieces')
+          .select('id, piece_name, metal, weight_grams, forge_date, edition_number, founder_note')
+          .eq('id', decoded.id)
+          .single()
+          .then(function (pieceRes) {
+            if (pieceRes.error || !pieceRes.data) return;
+            var piece = pieceRes.data;
+
+            sb.from('piece_owners')
+              .select('owner_name, owner_email, claimed_at')
+              .eq('piece_id', decoded.id)
+              .order('claimed_at', { ascending: false })
+              .limit(1)
+              .single()
+              .then(function (ownerRes) {
+                // Owner may not exist yet — still show the piece
+                var owner = (ownerRes.data) ? {
+                  name:       ownerRes.data.owner_name,
+                  email:      ownerRes.data.owner_email,
+                  claimed_at: ownerRes.data.claimed_at
+                } : null;
+
+                sb.from('transfer_log')
+                  .select('transferred_at, from_owner_email, to_owner_email')
+                  .eq('piece_id', decoded.id)
+                  .order('transferred_at', { ascending: true })
+                  .then(function (txRes) {
+                    var transfers = txRes.data || [];
+                    injectStyles();
+                    renderCertificate({ piece: piece, owner: owner, transferLog: transfers }, token);
+                  });
+              });
+          });
       });
+    }
   }
 
   // ========== CLAIM FLOW ==========
-  else if (pathname.indexOf('/transfer/claim/') === 0 && pathname.length > '/transfer/claim/'.length) {
-    injectStyles();
-    var transferCode = pathname.slice('/transfer/claim/'.length);
-    var overlay = createOverlay();
+  else if (pathname.indexOf('/transfer/claim/') !== -1) {
+    var claimMatch = pathname.match(/\/transfer\/claim\/([^/?#]+)/);
+    if (claimMatch) {
+      injectStyles();
+      var transferCode = claimMatch[1];
+      var overlay = createOverlay();
 
-    var form = el('div', { class: 'claim-form' }, [
-      el('div', { class: 'claim-title', textContent: 'Claim Ownership' }),
-      el('input', { class: 'claim-input', type: 'text', placeholder: 'Your name', id: 'claim-name' }),
-      el('input', { class: 'claim-input', type: 'email', placeholder: 'Your email', id: 'claim-email' }),
-      el('button', { class: 'claim-btn', type: 'button', id: 'claim-submit', textContent: 'Claim Ownership' })
-    ]);
-    overlay.appendChild(form);
+      var form = el('div', { class: 'claim-form' }, [
+        el('div', { class: 'claim-title', textContent: 'Claim Ownership' }),
+        el('input', { class: 'claim-input', type: 'text', placeholder: 'Your name', id: 'claim-name' }),
+        el('input', { class: 'claim-input', type: 'email', placeholder: 'Your email', id: 'claim-email' }),
+        el('button', { class: 'claim-btn', type: 'button', id: 'claim-submit', textContent: 'Claim Ownership' })
+      ]);
+      overlay.appendChild(form);
 
-    document.getElementById('claim-submit').addEventListener('click', function () {
-      var name = document.getElementById('claim-name').value.trim();
-      var email = document.getElementById('claim-email').value.trim();
-      if (!name || !email) return;
+      document.getElementById('claim-submit').addEventListener('click', function () {
+        var name = document.getElementById('claim-name').value.trim();
+        var email = document.getElementById('claim-email').value.trim();
+        if (!name || !email) return;
 
-      this.textContent = 'Claiming\u2026';
-      this.disabled = true;
+        this.textContent = 'Claiming\u2026';
+        this.disabled = true;
 
-      fetch('/api/transfer/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transfer_code: transferCode,
-          new_owner_name: name,
-          new_owner_email: email
-        })
-      })
-        .then(function (r) {
-          if (!r.ok) throw new Error('failed');
-          return r.json();
-        })
-        .then(function (data) {
-          form.remove();
-          var verifyUrl = 'phaesto.com/verify/' + data.new_token;
-          var success = el('div', { class: 'claim-success' }, [
-            el('div', { class: 'claim-success-title', textContent: 'Ownership recorded. Your verification link:' }),
-            el('div', { class: 'claim-success-link', id: 'claim-link', textContent: verifyUrl }),
-            el('button', { class: 'claim-btn', id: 'claim-copy', textContent: 'Copy Link' })
-          ]);
-          overlay.appendChild(success);
+        function waitForSupabase(cb, tries) {
+          tries = tries || 0;
+          if (window._phaestoSupabase) { cb(window._phaestoSupabase); return; }
+          if (tries > 20) return;
+          setTimeout(function () { waitForSupabase(cb, tries + 1); }, 100);
+        }
 
-          document.getElementById('claim-copy').addEventListener('click', function () {
-            navigator.clipboard.writeText(verifyUrl).then(function () {
-              document.getElementById('claim-copy').textContent = 'Copied';
+        waitForSupabase(function (sb) {
+          // Look up the transfer code
+          sb.from('transfer_codes')
+            .select('id, piece_id, expires_at, used_at')
+            .eq('code', transferCode)
+            .single()
+            .then(function (res) {
+              if (res.error || !res.data) {
+                form.innerHTML = '';
+                form.appendChild(el('div', { class: 'overlay-error', textContent: 'This transfer code is invalid or has expired.' }));
+                return;
+              }
+              var tc = res.data;
+              if (tc.used_at || new Date(tc.expires_at) < new Date()) {
+                form.innerHTML = '';
+                form.appendChild(el('div', { class: 'overlay-error', textContent: 'This transfer code has already been used or has expired.' }));
+                return;
+              }
+
+              // Mark code used + insert new owner
+              var now = new Date().toISOString();
+              var btn = document.getElementById('claim-submit');
+
+              Promise.all([
+                sb.from('transfer_codes').update({ used_at: now }).eq('id', tc.id),
+                sb.from('piece_owners').insert({
+                  piece_id:    tc.piece_id,
+                  owner_name:  name,
+                  owner_email: email,
+                  claimed_at:  now
+                })
+              ]).then(function (results) {
+                var err = results.find(function (r) { return r.error; });
+                if (err) {
+                  if (btn) { btn.textContent = 'Claim Ownership'; btn.disabled = false; }
+                  form.insertBefore(
+                    el('div', { class: 'overlay-error', textContent: 'Something went wrong. Please try again.' }),
+                    btn
+                  );
+                  return;
+                }
+
+                // Build new verify token
+                var newToken = btoa(JSON.stringify({
+                  id: tc.piece_id,
+                  ts: now
+                }));
+                var verifyUrl = window.location.origin + '/verify/' + newToken;
+
+                form.remove();
+                var success = el('div', { class: 'claim-success' }, [
+                  el('div', { class: 'claim-success-title', textContent: 'Ownership recorded. Your verification link:' }),
+                  el('div', { class: 'claim-success-link', id: 'claim-link', textContent: verifyUrl }),
+                  el('button', { class: 'claim-btn', id: 'claim-copy', textContent: 'Copy Link' })
+                ]);
+                overlay.appendChild(success);
+
+                document.getElementById('claim-copy').addEventListener('click', function () {
+                  navigator.clipboard.writeText(verifyUrl).then(function () {
+                    document.getElementById('claim-copy').textContent = 'Copied';
+                  });
+                });
+              });
             });
-          });
-        })
-        .catch(function () {
-          form.innerHTML = '';
-          form.appendChild(el('div', { class: 'overlay-error', textContent: 'This transfer code is invalid or has expired.' }));
         });
-    });
+      });
+    }
   }
 
   // ========== RENDER CERTIFICATE ==========
@@ -324,11 +411,13 @@
 
     inner.appendChild(el('div', { class: 'cert-divider' }));
 
-    inner.appendChild(el('div', { class: 'cert-detail', textContent: 'Owner' }));
-    inner.appendChild(el('div', { class: 'cert-detail-value', textContent: owner.name }));
+    if (owner) {
+      inner.appendChild(el('div', { class: 'cert-detail', textContent: 'Owner' }));
+      inner.appendChild(el('div', { class: 'cert-detail-value', textContent: owner.name }));
 
-    inner.appendChild(el('div', { class: 'cert-detail', textContent: 'Claimed' }));
-    inner.appendChild(el('div', { class: 'cert-detail-value', textContent: formatDate(owner.claimed_at) }));
+      inner.appendChild(el('div', { class: 'cert-detail', textContent: 'Claimed' }));
+      inner.appendChild(el('div', { class: 'cert-detail-value', textContent: formatDate(owner.claimed_at) }));
+    }
 
     if (piece.founder_note) {
       inner.appendChild(el('div', { class: 'cert-founder-note', textContent: '\u201C' + piece.founder_note + '\u201D' }));
@@ -370,34 +459,71 @@
         this.textContent = 'Generating\u2026';
         this.disabled = true;
 
-        fetch('/api/transfer/initiate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: token, seller_email: sellerEmail })
-        })
-          .then(function (r) {
-            if (!r.ok) throw new Error('failed');
-            return r.json();
-          })
-          .then(function (result) {
-            var codeBox = el('div', { class: 'cert-code-box' }, [
-              el('div', { class: 'cert-code', textContent: result.transfer_code }),
-              el('div', { class: 'cert-code-info', innerHTML: 'Share this code with the new owner. Expires in 48 hours.<br>They can claim at: phaesto.com/transfer/claim/' + result.transfer_code }),
-              el('button', { class: 'cert-copy-btn', id: 'transfer-copy-code', textContent: 'Copy Code' })
-            ]);
-            formDiv.innerHTML = '';
-            formDiv.appendChild(codeBox);
+        function waitForSupabase(cb, tries) {
+          tries = tries || 0;
+          if (window._phaestoSupabase) { cb(window._phaestoSupabase); return; }
+          if (tries > 20) { return; }
+          setTimeout(function () { waitForSupabase(cb, tries + 1); }, 100);
+        }
 
-            document.getElementById('transfer-copy-code').addEventListener('click', function () {
-              navigator.clipboard.writeText(result.transfer_code).then(function () {
-                document.getElementById('transfer-copy-code').textContent = 'Copied';
-              });
+        waitForSupabase(function (sb) {
+          // Verify seller email matches current owner
+          sb.from('piece_owners')
+            .select('owner_email')
+            .eq('piece_id', owner ? owner.piece_id || piece.id : piece.id)
+            .order('claimed_at', { ascending: false })
+            .limit(1)
+            .single()
+            .then(function (ownerCheck) {
+              if (ownerCheck.error || !ownerCheck.data) {
+                formDiv.innerHTML = '';
+                formDiv.appendChild(el('div', { class: 'cert-msg-error', textContent: 'Could not verify ownership.' }));
+                return;
+              }
+              if (ownerCheck.data.owner_email.toLowerCase() !== sellerEmail.toLowerCase()) {
+                formDiv.innerHTML = '';
+                formDiv.appendChild(el('div', { class: 'cert-msg-error', textContent: 'Could not generate transfer code. Ensure the email matches the current owner.' }));
+                return;
+              }
+
+              // Generate a random 8-char code
+              var code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+                .map(function (b) { return b.toString(16).padStart(2, '0'); })
+                .join('').toUpperCase().slice(0, 8);
+
+              var expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+              sb.from('transfer_codes')
+                .insert({
+                  piece_id:    piece.id,
+                  code:        code,
+                  seller_email: sellerEmail,
+                  expires_at:  expiresAt
+                })
+                .then(function (res) {
+                  if (res.error) {
+                    formDiv.innerHTML = '';
+                    formDiv.appendChild(el('div', { class: 'cert-msg-error', textContent: 'Could not generate transfer code. Please try again.' }));
+                    return;
+                  }
+
+                  var claimUrl = window.location.origin + '/transfer/claim/' + code;
+                  var codeBox = el('div', { class: 'cert-code-box' }, [
+                    el('div', { class: 'cert-code', textContent: code }),
+                    el('div', { class: 'cert-code-info', innerHTML: 'Share this code with the new owner. Expires in 48 hours.<br>They can claim at: ' + claimUrl }),
+                    el('button', { class: 'cert-copy-btn', id: 'transfer-copy-code', textContent: 'Copy Code' })
+                  ]);
+                  formDiv.innerHTML = '';
+                  formDiv.appendChild(codeBox);
+
+                  document.getElementById('transfer-copy-code').addEventListener('click', function () {
+                    navigator.clipboard.writeText(code).then(function () {
+                      document.getElementById('transfer-copy-code').textContent = 'Copied';
+                    });
+                  });
+                });
             });
-          })
-          .catch(function () {
-            formDiv.innerHTML = '';
-            formDiv.appendChild(el('div', { class: 'cert-msg-error', textContent: 'Could not generate transfer code. Ensure the email matches the current owner.' }));
-          });
+        });
       });
     });
   }

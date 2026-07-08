@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apply — Phaesto Atelier</title>
+  <meta name="description" content="Apply to join the Phaesto Forge. A closed and considered space.">
+  <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="./base.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #080808;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      color: rgba(255,255,255,0.85);
+      min-height: 100vh;
+    }
+    .apply-wrap {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 80px 32px 120px;
+    }
+    .apply-brand {
+      font-size: 22px;
+      letter-spacing: .45em;
+      color: rgba(255,255,255,0.9);
+      text-align: center;
+      margin-bottom: 4px;
+      font-weight: 300;
+    }
+    .apply-sub {
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: .3em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.25);
+      margin-bottom: 56px;
+    }
+    .apply-rule {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      margin: 40px 0;
+    }
+    .apply-heading {
+      font-size: 13px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      font-weight: 400;
+      margin: 0 0 32px;
+      text-align: center;
+    }
+    .apply-label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 8px;
+    }
+    .apply-input,
+    .apply-textarea,
+    .apply-select {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.85);
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 15px;
+      letter-spacing: .04em;
+      outline: none;
+      margin-bottom: 28px;
+      transition: border-color 0.25s ease;
+      -webkit-appearance: none;
+      appearance: none;
+      border-radius: 0;
+    }
+    .apply-input:focus,
+    .apply-textarea:focus,
+    .apply-select:focus {
+      border-color: rgba(255,255,255,0.22);
+    }
+    .apply-input::placeholder,
+    .apply-textarea::placeholder {
+      color: rgba(255,255,255,0.18);
+    }
+    .apply-textarea {
+      resize: vertical;
+      min-height: 120px;
+      line-height: 1.7;
+    }
+    .apply-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 40px;
+      cursor: pointer;
+    }
+    .apply-select option {
+      background: #1a1a1a;
+      color: rgba(255,255,255,0.85);
+    }
+    .apply-btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: transparent;
+      color: rgba(255,255,255,0.65);
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 12px;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color 0.25s ease, color 0.25s ease;
+      margin-top: 8px;
+    }
+    .apply-btn:hover:not(:disabled) {
+      border-color: rgba(255,255,255,0.28);
+      color: rgba(255,255,255,0.85);
+    }
+    .apply-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .apply-note {
+      font-size: 12px;
+      color: rgba(255,255,255,0.2);
+      line-height: 1.8;
+      text-align: center;
+      margin-top: 24px;
+      font-style: italic;
+    }
+    .apply-success {
+      text-align: center;
+      padding: 60px 0;
+      animation: applyFadeIn 600ms ease;
+    }
+    .apply-success-title {
+      font-size: 18px;
+      letter-spacing: .15em;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 16px;
+    }
+    .apply-success-body {
+      font-size: 14px;
+      color: rgba(255,255,255,0.3);
+      line-height: 1.9;
+      font-style: italic;
+    }
+    .apply-error {
+      font-size: 13px;
+      color: rgba(255,120,120,0.7);
+      margin-top: -16px;
+      margin-bottom: 16px;
+      letter-spacing: .04em;
+    }
+    @keyframes applyFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <div class="apply-wrap">
+    <div class="apply-brand">PHAĒSTO</div>
+    <div class="apply-sub">Atelier</div>
+
+    <div id="apply-form-area">
+      <p class="apply-heading">Apply to the Forge</p>
+
+      <form id="apply-form" novalidate>
+        <label class="apply-label" for="apply-name">Full Name</label>
+        <input class="apply-input" id="apply-name" type="text" placeholder="Your name" autocomplete="name" required>
+
+        <label class="apply-label" for="apply-email">Email</label>
+        <input class="apply-input" id="apply-email" type="email" placeholder="your@email.com" autocomplete="email" required>
+
+        <label class="apply-label" for="apply-location">Location</label>
+        <input class="apply-input" id="apply-location" type="text" placeholder="City, Country" autocomplete="off">
+
+        <label class="apply-label" for="apply-channel">How did you hear about Phaesto?</label>
+        <select class="apply-select" id="apply-channel">
+          <option value="" disabled selected>Select one</option>
+          <option value="word_of_mouth">Word of mouth</option>
+          <option value="instagram">Instagram</option>
+          <option value="nfc_tag">Saw a piece in person</option>
+          <option value="press">Press / editorial</option>
+          <option value="other">Other</option>
+        </select>
+
+        <label class="apply-label" for="apply-intent">Why do you want to join the Forge?</label>
+        <textarea class="apply-textarea" id="apply-intent" placeholder="Tell us briefly..." required></textarea>
+
+        <div class="apply-error" id="apply-error" style="display:none"></div>
+
+        <button class="apply-btn" type="submit" id="apply-submit">Submit Application</button>
+        <p class="apply-note">Applications are reviewed personally. You will receive a response by email.</p>
+      </form>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+  <script>
+    (function () {
+      var form    = document.getElementById('apply-form');
+      var nameEl  = document.getElementById('apply-name');
+      var emailEl = document.getElementById('apply-email');
+      var locEl   = document.getElementById('apply-location');
+      var chanEl  = document.getElementById('apply-channel');
+      var intentEl= document.getElementById('apply-intent');
+      var errEl   = document.getElementById('apply-error');
+      var submitBtn = document.getElementById('apply-submit');
+      var areaEl  = document.getElementById('apply-form-area');
+
+      function showError(msg) {
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+      }
+      function hideError() {
+        errEl.style.display = 'none';
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        hideError();
+
+        var name   = nameEl.value.trim();
+        var email  = emailEl.value.trim();
+        var intent = intentEl.value.trim();
+
+        if (!name)   { showError('Please enter your name.'); return; }
+        if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+          showError('Please enter a valid email address.'); return;
+        }
+        if (!intent) { showError('Please tell us why you want to join.'); return; }
+
+        submitBtn.textContent = 'Submitting\u2026';
+        submitBtn.disabled = true;
+
+        var sb = window._phaestoSupabase;
+        if (!sb) { showError('Configuration error. Please try again later.'); return; }
+
+        sb.from('applications')
+          .insert({
+            name:        name,
+            email:       email,
+            location:    locEl.value.trim() || null,
+            channel:     chanEl.value || null,
+            intent:      intent,
+            status:      'pending',
+            submitted_at: new Date().toISOString()
+          })
+          .then(function (res) {
+            if (res.error) {
+              console.error(res.error);
+              showError('Something went wrong. Please try again.');
+              submitBtn.textContent = 'Submit Application';
+              submitBtn.disabled = false;
+              return;
+            }
+            areaEl.innerHTML = [
+              '<div class="apply-success">',
+              '  <div class="apply-success-title">Application received.</div>',
+              '  <div class="apply-success-body">',
+              '    The Forge is closed and considered.<br>',
+              '    We will be in touch if there is a place for you.',
+              '  </div>',
+              '</div>'
+            ].join('');
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
