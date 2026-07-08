@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: phaesto-atelier
+    runtime: static
+    staticPublishPath: ./phaesto-root
+    pullRequestPreviewsEnabled: false
+    routes:
+      # Named HTML pages
+      - type: rewrite
+        source: /apply
+        destination: /apply.html
+      - type: rewrite
+        source: /apply.html
+        destination: /apply.html
+      # Verify — any token after /verify/
+      - type: rewrite
+        source: /verify/*
+        destination: /verify.html
+      # Transfer claim — any code after /transfer/claim/
+      - type: rewrite
+        source: /transfer/claim/*
+        destination: /verify.html
+      # SPA fallback — keeps 404s from leaking on direct nav
+      - type: rewrite
+        source: /*
+        destination: /index.html
