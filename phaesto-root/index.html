@@ -205,10 +205,6 @@
     66%       { transform: translateY(-2px) rotate(-1.5deg); }
   }
 
-  /* Idle runs only when .spinning is absent.
-     The .spinning rule is intentionally omitted here —
-     style.css already owns it and this avoids the
-     same-specificity source-order override that killed the spin. */
   #sigil-trigger:not(.spinning) .sigil-trigger-img {
     animation: sigil-idle 5s ease-in-out infinite;
   }
@@ -263,7 +259,7 @@
   <img class="sigil-trigger-img" src="./assets/sigil-logo-nav.png" alt="" width="36" height="36">
 </button>
 
-<div id="sigil-hint" aria-hidden="true">tap to enter</div>
+<div id="sigil-hint" aria-hidden="true">Enter</div>
 
 <nav class="nav-overlay" id="nav-overlay" role="navigation" aria-label="Main navigation">
   <div class="nav-overlay-inner">
