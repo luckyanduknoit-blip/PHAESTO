@@ -216,8 +216,9 @@
     return overlay;
   }
 
+  // FIX: was './assets/sigil-logo.png' (relative — breaks under /verify/:token)
   function getSigilSrc() {
-    return './assets/sigil-logo.png';
+    return '/assets/sigil-logo.png';
   }
 
   // ========== VERIFY FLOW ==========
@@ -226,27 +227,49 @@
     if (verifyMatch) {
       var token = verifyMatch[1];
 
+      injectStyles();
+      // Show loading overlay while data loads
+      var loadOverlay = createOverlay();
+      var sigilImg = el('img', { src: '/assets/sigil-logo.png', class: 'sigil-pulse', alt: '' });
+      var loadText = el('div', { class: 'overlay-text', textContent: 'Verifying' });
+      loadOverlay.appendChild(sigilImg);
+      loadOverlay.appendChild(loadText);
+
       function waitForSupabase(cb, tries) {
         tries = tries || 0;
         if (window._phaestoSupabase) { cb(window._phaestoSupabase); return; }
-        if (tries > 20) return;
+        if (tries > 20) {
+          loadText.textContent = 'Could not connect. Please reload.';
+          return;
+        }
         setTimeout(function () { waitForSupabase(cb, tries + 1); }, 100);
       }
 
       waitForSupabase(function (sb) {
         var decoded;
-        try { decoded = JSON.parse(atob(token)); } catch (e) { return; }
-        if (!decoded || !decoded.id) return;
+        try { decoded = JSON.parse(atob(decodeURIComponent(token))); } catch (e) {
+          loadOverlay.innerHTML = '';
+          loadOverlay.appendChild(el('div', { class: 'overlay-error', textContent: 'This verification link is not valid.' }));
+          return;
+        }
+        if (!decoded || !decoded.id) {
+          loadOverlay.innerHTML = '';
+          loadOverlay.appendChild(el('div', { class: 'overlay-error', textContent: 'This verification link is not valid.' }));
+          return;
+        }
 
         sb.from('pieces')
           .select('id, piece_id, piece_name, metal, weight_grams, forge_date, edition_number, founder_note')
           .eq('id', decoded.id)
           .single()
           .then(function (pieceRes) {
-            if (pieceRes.error || !pieceRes.data) return;
+            if (pieceRes.error || !pieceRes.data) {
+              loadOverlay.innerHTML = '';
+              loadOverlay.appendChild(el('div', { class: 'overlay-error', textContent: 'Piece not found in the ledger.' }));
+              return;
+            }
             var piece = pieceRes.data;
 
-            // FIX: was piece_owners — real table is ownership
             sb.from('ownership')
               .select('owner_name, owner_email, claimed_at, piece_id')
               .eq('piece_id', piece.piece_id)
@@ -266,7 +289,10 @@
                   .order('transferred_at', { ascending: true })
                   .then(function (txRes) {
                     var transfers = txRes.data || [];
-                    injectStyles();
+                    // Remove loading overlay before rendering
+                    if (loadOverlay && loadOverlay.parentNode) {
+                      loadOverlay.parentNode.removeChild(loadOverlay);
+                    }
                     renderCertificate({ piece: piece, owner: owner, transferLog: transfers }, token);
                   });
               });
@@ -308,7 +334,6 @@
         }
 
         waitForSupabase(function (sb) {
-          // FIX: was transfer_codes table — transfer code lives on the ownership row
           sb.from('ownership')
             .select('id, piece_id, transfer_code, transfer_code_expires_at, transfer_pending, owner_email')
             .eq('transfer_code', transferCode)
@@ -333,14 +358,13 @@
               var prevOwnerEmail = row.owner_email;
               var pieceId = row.piece_id;
 
-              // 1. Mark old owner row as no longer current + clear transfer fields
               sb.from('ownership')
                 .update({
-                  is_current_owner:          false,
-                  transfer_pending:          false,
-                  transfer_code:             null,
-                  transfer_code_expires_at:  null,
-                  transfer_to_email:         null
+                  is_current_owner:         false,
+                  transfer_pending:         false,
+                  transfer_code:            null,
+                  transfer_code_expires_at: null,
+                  transfer_to_email:        null
                 })
                 .eq('id', prevOwnerId)
                 .then(function (updateRes) {
@@ -350,13 +374,12 @@
                     return;
                   }
 
-                  // 2. Insert new owner row
                   sb.from('ownership')
                     .insert({
-                      piece_id:        pieceId,
-                      owner_name:      name,
-                      owner_email:     email,
-                      claimed_at:      now,
+                      piece_id:         pieceId,
+                      owner_name:       name,
+                      owner_email:      email,
+                      claimed_at:       now,
                       is_current_owner: true
                     })
                     .then(function (insertRes) {
@@ -366,17 +389,14 @@
                         return;
                       }
 
-                      // 3. Write transfer_log entry
                       sb.from('transfer_log').insert({
-                        piece_id:          pieceId,
-                        from_owner_email:  prevOwnerEmail,
-                        to_owner_email:    email,
-                        to_owner:          name,
-                        transferred_at:    now
+                        piece_id:         pieceId,
+                        from_owner_email: prevOwnerEmail,
+                        to_owner_email:   email,
+                        to_owner:         name,
+                        transferred_at:   now
                       });
 
-                      // 4. Build new verify token and show success
-                      // Need pieces.id (uuid) for the token — fetch it via piece_id
                       sb.from('pieces').select('id').eq('piece_id', pieceId).single()
                         .then(function (pRes) {
                           var newToken = btoa(JSON.stringify({ id: pRes.data ? pRes.data.id : pieceId, ts: now }));
@@ -413,7 +433,7 @@
     var cert = el('div', { id: 'phaesto-certificate' });
     var inner = el('div', { class: 'cert-inner' });
 
-    inner.appendChild(el('img', { src: getSigilSrc(), class: 'cert-sigil', alt: '' }));
+    inner.appendChild(el('img', { src: '/assets/sigil-logo.png', class: 'cert-sigil', alt: '' }));
     inner.appendChild(el('h1', { class: 'cert-piece-name', textContent: piece.piece_name }));
     inner.appendChild(el('div', { class: 'cert-edition', textContent: padEdition(piece.edition_number) }));
     inner.appendChild(el('div', { class: 'cert-divider' }));
@@ -483,7 +503,6 @@
         }
 
         waitForSupabase(function (sb) {
-          // FIX: was piece_owners — real table is ownership
           sb.from('ownership')
             .select('id, owner_email')
             .eq('piece_id', piece.piece_id)
@@ -507,7 +526,6 @@
 
               var expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-              // FIX: was transfer_codes insert — write directly onto the ownership row
               sb.from('ownership')
                 .update({
                   transfer_code:            code,
