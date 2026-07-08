@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* ==============================================================
            RESET
@@ -52,7 +54,7 @@
         ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
         /* ==============================================================
-           AMBIENT BACKGROUND — subtle breathing gradient
+           AMBIENT BACKGROUND
            ============================================================== */
         .ambient{position:fixed;inset:0;z-index:-1;pointer-events:none;
           background:
@@ -266,6 +268,7 @@
         .btn-g{display:inline-flex;gap:.3rem}
         .btn-p{border-color:var(--gold-dim);color:var(--gold);padding:.5rem 1.4rem;font-size:.72rem}
         .btn-p:hover{background:var(--gold-glow);border-color:var(--gold)}
+        .btn-p:disabled{opacity:.4;cursor:not-allowed}
 
         /* ==============================================================
            FORMS
@@ -523,16 +526,16 @@
                     </div>
                     <div class="f-actions">
                         <button type="submit" class="btn btn-p" id="mint-btn">Mint Piece</button>
-                        <span class="f-hint">Generates JWT &middot; inserts to DB &middot; returns verify URL</span>
+                        <span class="f-hint" id="mint-hint">Generates JWT &middot; inserts to DB &middot; sends certificate email</span>
                     </div>
                 </form>
                 <div class="result" id="mint-result">
-                    <div class="result-h">Piece Minted &mdash; Mock Output</div>
+                    <div class="result-h">Piece Minted</div>
                     <div class="result-r"><span class="result-k">Piece ID</span><span class="result-v" id="res-id"></span></div>
                     <div class="result-r"><span class="result-k">Piece Name</span><span class="result-v" id="res-name"></span></div>
+                    <div class="result-r"><span class="result-k">Owner</span><span class="result-v" id="res-owner"></span></div>
                     <div class="result-r"><span class="result-k">Verify URL</span><span class="result-url" id="res-url"></span></div>
-                    <div class="result-r" style="margin-top:.65rem"><span class="result-k">Status</span>
-                        <span class="result-v" style="color:var(--gold-dim);font-style:italic">Placeholder &mdash; real URL once backend wired</span></div>
+                    <div class="result-r"><span class="result-k">Email</span><span class="result-v" id="res-email-status"></span></div>
                 </div>
             </div></div></div>
         </div>
@@ -571,6 +574,25 @@
 'use strict';
 
 /* ==============================================================
+   CONFIG — injected at deploy time or set here for self-hosting.
+   SUPABASE_URL and SUPABASE_ANON_KEY come from your project settings.
+   ADMIN_KEY is the password checked at the auth gate.
+   RESEND_EDGE_FN is the path of the Supabase Edge Function that
+   proxies Resend (keeps the API key server-side).
+   ============================================================== */
+var CFG = {
+    SUPABASE_URL:  window.__PHAESTO_SUPABASE_URL  || 'https://YOUR_PROJECT.supabase.co',
+    SUPABASE_ANON: window.__PHAESTO_SUPABASE_ANON || 'YOUR_ANON_KEY',
+    ADMIN_KEY:     window.__PHAESTO_ADMIN_KEY      || '',   // Set via server-side injection
+    RESEND_FN:     '/functions/v1/send-email'               // Supabase Edge Function path
+};
+
+/* ==============================================================
+   SUPABASE CLIENT
+   ============================================================== */
+var sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON);
+
+/* ==============================================================
    UTILITIES
    ============================================================== */
 
@@ -602,152 +624,255 @@ function fmtDate(iso){
 function $(id){return document.getElementById(id)}
 
 /* ==============================================================
-   MOCK DATA (relative to "now" so timeAgo always looks fresh)
-
-   TODO — Replace MOCK_APPLICANTS with:
-     const { data } = await supabase.from('forge_applicants').select('*').order('created_at',{ascending:false});
-     MOCK_APPLICANTS = data;
-
-   TODO — Replace MOCK_TRANSFERS with:
-     const { data } = await supabase.from('ownership_transfers').select('*').order('transferred_at',{ascending:false});
-     MOCK_TRANSFERS = data;
+   STATE
    ============================================================== */
-
-var now=Date.now(),HOUR=3600000,DAY=86400000;
-
-var MOCK_APPLICANTS=[
-    {id:'app-001',contact:'k.reid@proton.me',
-     answer_relic:'The watch stopped at 11:11 the night she left',
-     intent:'I want to carry something that remembers for me',
-     slot_number:4,created_at:new Date(now-2*DAY-5*HOUR).toISOString(),
-     signal_1_sent_at:new Date(now-2*DAY-4.5*HOUR).toISOString(),
-     signal_2_sent_at:new Date(now-1*DAY).toISOString(),
-     signal_3_sent_at:null,webhook_fired:false,
-     /* PLACEHOLDER — real decision state TBD */
-     _mockDecision:null},
-    {id:'app-002',contact:'m.valente@gmail.com',
-     answer_relic:"A pressed flower from her grandmother\u2019s garden, still in the book",
-     intent:'Legacy piece \u2014 passing down to my daughter',
-     slot_number:7,created_at:new Date(now-1*DAY-3*HOUR).toISOString(),
-     signal_1_sent_at:new Date(now-1*DAY-2.5*HOUR).toISOString(),
-     signal_2_sent_at:null,signal_3_sent_at:null,webhook_fired:false,
-     _mockDecision:null},
-    {id:'app-003',contact:'silent.type@icloud.com',
-     answer_relic:"My father\u2019s war medal \u2014 he never talked about it",
-     intent:'Honor. Nothing more.',
-     slot_number:2,created_at:new Date(now-4*DAY).toISOString(),
-     signal_1_sent_at:new Date(now-4*DAY+.5*HOUR).toISOString(),
-     signal_2_sent_at:new Date(now-3*DAY).toISOString(),
-     signal_3_sent_at:new Date(now-2*DAY).toISOString(),
-     webhook_fired:true,_mockDecision:'accepted'},
-    {id:'app-004',contact:'hype.buyer@yahoo.com',
-     answer_relic:'Honestly I just think the brand looks cool',
-     intent:'Want to flex on social media',
-     slot_number:null,created_at:new Date(now-12*HOUR).toISOString(),
-     signal_1_sent_at:null,signal_2_sent_at:null,signal_3_sent_at:null,
-     webhook_fired:false,_mockDecision:'denied'},
-    {id:'app-005',contact:'a.kowalski@pm.me',
-     answer_relic:"The last voicemail \u2014 I still can\u2019t delete it",
-     intent:"To wear what I can\u2019t say out loud",
-     slot_number:9,created_at:new Date(now-6*HOUR).toISOString(),
-     signal_1_sent_at:null,signal_2_sent_at:null,signal_3_sent_at:null,
-     webhook_fired:false,_mockDecision:null}
-];
-
-var MOCK_TRANSFERS=[
-    {id:'tx-001',piece_id:'PA-001',piece_name:'Memento',from_owner:'\u2014 (vault)',
-     to_owner:'k.reid@proton.me',transferred_at:new Date(now-2*DAY).toISOString(),tx_type:'initial_mint'},
-    {id:'tx-002',piece_id:'PA-002',piece_name:'Reliquary',from_owner:'\u2014 (vault)',
-     to_owner:'silent.type@icloud.com',transferred_at:new Date(now-4*DAY).toISOString(),tx_type:'initial_mint'},
-    {id:'tx-003',piece_id:'PA-001',piece_name:'Memento',from_owner:'k.reid@proton.me',
-     to_owner:'collector@pm.me',transferred_at:new Date(now-1*DAY).toISOString(),tx_type:'transfer'},
-    {id:'tx-004',piece_id:'PA-003',piece_name:'Vestige',from_owner:'\u2014 (vault)',
-     to_owner:'m.valente@gmail.com',transferred_at:new Date(now-8*HOUR).toISOString(),tx_type:'initial_mint'}
-];
+var APPLICANTS = [];
+var TRANSFERS  = [];
 
 /* ==============================================================
-   PLACEHOLDER BACKEND FUNCTIONS
+   SUPABASE DATA LOADERS
    ============================================================== */
 
-/**
- * TODO — Wire to real auth validation against the stored secret key.
- * Do NOT hardcode the actual password. Use a Supabase Edge Function
- * or compare against a hashed value stored in env/secrets.
- * For UI testing, any non-empty input is accepted.
- */
-function checkPassword(input){
-    console.warn('[PLACEHOLDER] checkPassword() \u2014 accepting any non-empty input.');
-    return input.trim().length>0;
+async function loadApplicants(){
+    var res = await sb
+        .from('forge_applicants')
+        .select('*')
+        .order('created_at', {ascending: false});
+    if(res.error){
+        console.error('loadApplicants:', res.error);
+        Toast.show('e', 'Failed to load applicants');
+        return;
+    }
+    APPLICANTS = res.data || [];
+    renderForge();
+    renderStats();
 }
 
-/**
- * TODO — Wire to real backend:
- *   1. Update decision state in Supabase (column or separate table)
- *   2. Fire Resend email (acceptance letter / denial)
- *   3. If accepted: trigger slot assignment + signal sequence
- *   4. Log the action
- */
-function handleDecision(appId,decision){
-    console.warn('[PLACEHOLDER] handleDecision("'+appId+'","'+decision+'")');
-    var app=MOCK_APPLICANTS.find(function(a){return a.id===appId});
-    if(!app)return;
-    app._mockDecision=decision;
+async function loadTransfers(){
+    var res = await sb
+        .from('ownership_transfers')
+        .select('*')
+        .order('transferred_at', {ascending: false});
+    if(res.error){
+        console.error('loadTransfers:', res.error);
+        Toast.show('e', 'Failed to load transfers');
+        return;
+    }
+    TRANSFERS = res.data || [];
+    renderTransfers();
+    renderStats();
+}
+
+/* ==============================================================
+   REALTIME — live updates for forge_applicants
+   ============================================================== */
+function subscribeRealtime(){
+    sb.channel('forge-live')
+        .on('postgres_changes',
+            {event: '*', schema: 'public', table: 'forge_applicants'},
+            function(payload){
+                // Reload full list on any change
+                loadApplicants();
+                if(payload.eventType === 'INSERT'){
+                    Toast.show('i', 'New applicant — '+esc(payload.new.contact||''));
+                    Sound.open();
+                }
+            })
+        .subscribe();
+
+    sb.channel('transfers-live')
+        .on('postgres_changes',
+            {event: '*', schema: 'public', table: 'ownership_transfers'},
+            function(){
+                loadTransfers();
+            })
+        .subscribe();
+}
+
+/* ==============================================================
+   AUTH
+   ============================================================== */
+
+function checkPassword(input){
+    // If no ADMIN_KEY configured, accept any non-empty input (dev mode).
+    if(!CFG.ADMIN_KEY) return input.trim().length > 0;
+    return input.trim() === CFG.ADMIN_KEY;
+}
+
+/* ==============================================================
+   DECISION HANDLER — Accept / Deny applicant
+   Updates Supabase and fires Resend email via Edge Function.
+   ============================================================== */
+
+async function handleDecision(appId, decision){
+    var btn1 = document.querySelector('button[data-dec="accepted"][data-id="'+appId+'"]');
+    var btn2 = document.querySelector('button[data-dec="denied"][data-id="'+appId+'"]');
+    if(btn1) btn1.disabled = true;
+    if(btn2) btn2.disabled = true;
+
+    // 1. Update decision in Supabase
+    var upd = await sb
+        .from('forge_applicants')
+        .update({
+            decision:    decision,
+            decided_at:  new Date().toISOString()
+        })
+        .eq('id', appId);
+
+    if(upd.error){
+        console.error('handleDecision update:', upd.error);
+        Toast.show('e', 'DB update failed');
+        if(btn1) btn1.disabled = false;
+        if(btn2) btn2.disabled = false;
+        return;
+    }
+
+    // Optimistically update local state
+    var app = APPLICANTS.find(function(a){return a.id === appId;});
+    if(app){
+        app.decision   = decision;
+        app.decided_at = new Date().toISOString();
+    }
     renderForge();
     renderStats();
 
-    // Flash row
+    // 2. Flash row
     requestAnimationFrame(function(){
-        var row=document.querySelector('tr[data-id="'+appId+'"]');
+        var row = document.querySelector('tr[data-id="'+appId+'"]');
         if(row){
-            row.classList.remove('flash');
-            row.classList.add(decision==='accepted'?'status-accepted':'status-denied');
-            void row.offsetWidth;
-            row.style.animation=decision==='accepted'
-                ?'rowFlashGreen .9s ease forwards'
-                :'rowFlashRed .9s ease forwards';
+            row.classList.add(decision==='accepted' ? 'status-accepted' : 'status-denied');
+            row.style.animation = decision==='accepted'
+                ? 'rowFlashGreen .9s ease forwards'
+                : 'rowFlashRed .9s ease forwards';
         }
     });
 
-    Toast.show(
-        decision==='accepted'?'s':'e',
-        decision==='accepted'
-            ?'Accepted \u2014 '+app.contact
-            : 'Denied \u2014 '+app.contact
-    );
+    Toast.show(decision==='accepted'?'s':'e',
+        (decision==='accepted'?'Accepted':'Denied')+' \u2014 '+(app?app.contact:''));
     Sound[decision==='accepted'?'confirm':'alert']();
-}
 
-/**
- * TODO — Wire to real backend:
- *   1. Generate a JWT signed with piece metadata
- *   2. INSERT into Supabase `pieces` table
- *   3. INSERT initial row into `ownership_transfers`
- *   4. Return the full https://phaestoatelier.com/verify/<token> URL
- */
-function handleMintPiece(fd){
-    console.warn('[PLACEHOLDER] handleMintPiece() \u2014 returning mock URL.');
-    var payload=btoa(JSON.stringify({id:fd.piece_id,ed:fd.edition_number}));
-    var mockToken='eyJhbGciOiJIUzI1NiJ9.'+payload.slice(0,36)+'.mock-sig';
-    var mockUrl='https://phaestoatelier.com/verify/'+mockToken;
-
-    $('res-id').textContent=fd.piece_id;
-    $('res-name').textContent=fd.piece_name;
-    $('res-url').textContent=mockUrl;
-
-    var panel=$('mint-result');
-    panel.classList.remove('show');
-    void panel.offsetWidth;
-    panel.classList.add('show');
-    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-
-    Particles.burst($('mint-btn'));
-    Toast.show('i','Minted \u2014 '+fd.piece_name+' ('+fd.piece_id+')');
-    Sound.confirm();
+    // 3. Fire Resend email via Edge Function
+    if(app){
+        try{
+            var emailRes = await fetch(CFG.SUPABASE_URL + CFG.RESEND_FN, {
+                method: 'POST',
+                headers: {
+                    'Content-Type':  'application/json',
+                    'Authorization': 'Bearer ' + CFG.SUPABASE_ANON
+                },
+                body: JSON.stringify({
+                    type:     'decision',
+                    decision: decision,
+                    to:       app.contact,
+                    name:     app.contact
+                })
+            });
+            if(!emailRes.ok) throw new Error(await emailRes.text());
+            Toast.show('i', 'Email sent \u2014 '+app.contact);
+        } catch(err){
+            console.error('Resend email failed:', err);
+            Toast.show('e', 'Email failed \u2014 check Edge Fn logs');
+        }
+    }
 }
 
 /* ==============================================================
-   SOUND SYSTEM — Web Audio API, tiny synthesized tones.
-   Default OFF. User opts in via header toggle.
+   MINT PIECE HANDLER
+   Generates JWT, inserts to Supabase, records transfer, emails certificate.
+   ============================================================== */
+
+async function handleMintPiece(fd){
+    var mintBtn = $('mint-btn');
+    mintBtn.disabled = true;
+    mintBtn.textContent = 'Minting\u2026';
+
+    try{
+        // 1. Generate lightweight JWT-like token (signed server-side ideally;
+        //    here we build a base64 payload and rely on the Edge Function
+        //    to issue the real signed token — this is the client-side draft).
+        var payload = {
+            piece_id:       fd.piece_id,
+            piece_name:     fd.piece_name,
+            edition_number: fd.edition_number,
+            forge_date:     fd.forge_date,
+            owner_email:    fd.owner_email,
+            minted_at:      new Date().toISOString()
+        };
+
+        // 2. INSERT piece into Supabase `pieces` table
+        var pieceRes = await sb.from('pieces').insert([{
+            id:             fd.piece_id,
+            name:           fd.piece_name,
+            weight_grams:   fd.weight,
+            edition_number: fd.edition_number,
+            forge_date:     fd.forge_date,
+            owner_name:     fd.owner_name,
+            owner_email:    fd.owner_email,
+            founder_note:   fd.founder_note || null
+        }]).select().single();
+
+        if(pieceRes.error) throw pieceRes.error;
+
+        // 3. INSERT initial transfer record
+        await sb.from('ownership_transfers').insert([{
+            piece_id:       fd.piece_id,
+            piece_name:     fd.piece_name,
+            from_owner:     '\u2014 (vault)',
+            to_owner:       fd.owner_email,
+            transferred_at: new Date().toISOString(),
+            tx_type:        'initial_mint'
+        }]);
+
+        // 4. Request signed verify token + certificate email from Edge Function
+        var mintFnRes = await fetch(CFG.SUPABASE_URL + CFG.RESEND_FN, {
+            method: 'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': 'Bearer ' + CFG.SUPABASE_ANON
+            },
+            body: JSON.stringify({
+                type:    'mint_certificate',
+                payload: payload
+            })
+        });
+
+        var mintFnData = mintFnRes.ok ? await mintFnRes.json() : {};
+        var verifyUrl = mintFnData.verify_url ||
+            'https://phaestoatelier.com/verify/' +
+            btoa(JSON.stringify({id: fd.piece_id, ed: fd.edition_number})).slice(0,48);
+
+        // 5. Show result panel
+        $('res-id').textContent        = fd.piece_id;
+        $('res-name').textContent      = fd.piece_name;
+        $('res-owner').textContent     = fd.owner_name + ' <' + fd.owner_email + '>';
+        $('res-url').textContent       = verifyUrl;
+        $('res-email-status').textContent = mintFnRes.ok ? 'Certificate sent \u2713' : 'DB saved; email pending';
+        $('res-email-status').style.color = mintFnRes.ok ? 'var(--accept)' : 'var(--gold-dim)';
+
+        var panel = $('mint-result');
+        panel.classList.remove('show');
+        void panel.offsetWidth;
+        panel.classList.add('show');
+        panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+        Particles.burst(mintBtn);
+        Toast.show('s', 'Minted \u2014 '+fd.piece_name+' ('+fd.piece_id+')');
+        Sound.confirm();
+
+        // Reload transfers
+        loadTransfers();
+
+    } catch(err){
+        console.error('handleMintPiece:', err);
+        Toast.show('e', 'Mint failed \u2014 '+( err.message || err));
+    } finally {
+        mintBtn.disabled = false;
+        mintBtn.textContent = 'Mint Piece';
+    }
+}
+
+/* ==============================================================
+   SOUND SYSTEM
    ============================================================== */
 
 var Sound=(function(){
@@ -794,7 +919,7 @@ var Toast=(function(){
 })();
 
 /* ==============================================================
-   PARTICLE CELEBRATION — lightweight gold burst
+   PARTICLE CELEBRATION
    ============================================================== */
 
 var Particles=(function(){
@@ -804,40 +929,27 @@ var Particles=(function(){
         document.body.appendChild(canvas);
         var ctx=canvas.getContext('2d');
         canvas.width=window.innerWidth;canvas.height=window.innerHeight;
-
         var rect=origin.getBoundingClientRect();
         var cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
         var colors=['#c8a84e','#e4c566','#9a7a30','#ffd700','#b8942a'];
         var pts=[];
-
         for(var i=0;i<50;i++){
             var angle=Math.random()*Math.PI*2;
             var speed=1.5+Math.random()*5;
-            pts.push({
-                x:cx,y:cy,
-                vx:Math.cos(angle)*speed,
-                vy:Math.sin(angle)*speed-1.5,
-                sz:1.5+Math.random()*2.5,
-                col:colors[Math.floor(Math.random()*colors.length)],
-                a:1,decay:.014+Math.random()*.018
-            });
+            pts.push({x:cx,y:cy,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-1.5,
+                sz:1.5+Math.random()*2.5,col:colors[Math.floor(Math.random()*colors.length)],
+                a:1,decay:.014+Math.random()*.018});
         }
-
         function frame(){
             ctx.clearRect(0,0,canvas.width,canvas.height);
             var alive=false;
             for(var i=0;i<pts.length;i++){
                 var p=pts[i];
                 p.x+=p.vx;p.y+=p.vy;p.vy+=.08;p.a-=p.decay;
-                if(p.a>0){
-                    alive=true;
-                    ctx.globalAlpha=p.a;
-                    ctx.fillStyle=p.col;
-                    ctx.fillRect(p.x-p.sz/2,p.y-p.sz/2,p.sz,p.sz);
-                }
+                if(p.a>0){alive=true;ctx.globalAlpha=p.a;ctx.fillStyle=p.col;
+                    ctx.fillRect(p.x-p.sz/2,p.y-p.sz/2,p.sz,p.sz);}
             }
-            if(alive)requestAnimationFrame(frame);
-            else canvas.remove();
+            if(alive)requestAnimationFrame(frame);else canvas.remove();
         }
         frame();
     }
@@ -854,6 +966,7 @@ var CMD_ITEMS=[
     {label:'Transfer Log',cat:'Sections',key:'3',action:function(){openSection('sec-transfer')}},
     {label:'Mint New Piece',cat:'Actions',action:function(){openSection('sec-mint');$('f-id').focus()}},
     {label:'Clear Mint Form',cat:'Actions',action:function(){$('mint-form').reset();$('mint-result').classList.remove('show')}},
+    {label:'Refresh Data',cat:'Actions',action:function(){loadApplicants();loadTransfers();Toast.show('i','Refreshing\u2026')}},
     {label:'Toggle Sound',cat:'Settings',action:function(){toggleSound()}},
     {label:'Expand All Sections',cat:'Navigation',action:function(){document.querySelectorAll('.sec').forEach(function(s){s.classList.add('open')})}},
     {label:'Collapse All Sections',cat:'Navigation',action:function(){document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('open')})}}
@@ -878,20 +991,16 @@ function renderCmdResults(query){
     var container=$('cmd-results');
     var q=query.toLowerCase().trim();
     cmdFiltered=q?CMD_ITEMS.filter(function(i){return i.label.toLowerCase().indexOf(q)!==-1}):CMD_ITEMS.slice();
-
     if(!cmdFiltered.length){
         container.innerHTML='<div class="cmd-empty">No matching actions</div>';
         cmdIdx=0;return;
     }
     cmdIdx=0;
-
-    // Group by category
     var groups={};
     cmdFiltered.forEach(function(item){
         if(!groups[item.cat])groups[item.cat]=[];
         groups[item.cat].push(item);
     });
-
     var html='',globalIdx=0;
     ['Sections','Actions','Navigation','Settings'].forEach(function(cat){
         if(!groups[cat])return;
@@ -910,10 +1019,7 @@ function cmdNav(dir){
     var items=$('cmd-results').querySelectorAll('.cmd-item');
     if(items[cmdIdx])items[cmdIdx].classList.remove('active');
     cmdIdx=(cmdIdx+dir+cmdFiltered.length)%cmdFiltered.length;
-    if(items[cmdIdx]){
-        items[cmdIdx].classList.add('active');
-        items[cmdIdx].scrollIntoView({block:'nearest'});
-    }
+    if(items[cmdIdx]){items[cmdIdx].classList.add('active');items[cmdIdx].scrollIntoView({block:'nearest'});}
     Sound.tap();
 }
 function cmdSelect(){
@@ -949,16 +1055,13 @@ $('cmd-trigger').addEventListener('click',function(){cmdOpen?closeCmd():openCmd(
     lines.forEach(function(l,i){
         l.style.animation='bootLineIn .3s ease '+(600+i*320)+'ms forwards';
     });
-
     function exit(){
         boot.classList.add('exit');
         setTimeout(function(){boot.classList.add('hidden')},600);
         document.removeEventListener('click',exit);
         document.removeEventListener('keydown',exit);
-        // Focus auth input after boot clears
         setTimeout(function(){$('auth-in').focus()},650);
     }
-
     document.addEventListener('click',exit);
     document.addEventListener('keydown',exit);
     setTimeout(exit,2100);
@@ -1023,18 +1126,18 @@ function animateNum(el,target,dur){
 }
 
 function renderStats(){
-    var total=MOCK_APPLICANTS.length;
-    var pending=MOCK_APPLICANTS.filter(function(a){return a._mockDecision===null}).length;
-    var accepted=MOCK_APPLICANTS.filter(function(a){return a._mockDecision==='accepted'}).length;
-    var transfers=MOCK_TRANSFERS.length;
+    var total    = APPLICANTS.length;
+    var pending  = APPLICANTS.filter(function(a){return !a.decision;}).length;
+    var accepted = APPLICANTS.filter(function(a){return a.decision==='accepted';}).length;
+    var transfers= TRANSFERS.length;
 
     animateNum($('dash').querySelector('[data-stat="total"]'),total);
     animateNum($('dash').querySelector('[data-stat="pending"]'),pending,800);
     animateNum($('dash').querySelector('[data-stat="accepted"]'),accepted,900);
     animateNum($('dash').querySelector('[data-stat="transfers"]'),transfers,1000);
 
-    $('forge-badge').textContent=pending+' pending';
-    $('transfer-badge').textContent=transfers+' entries';
+    $('forge-badge').textContent    = pending+' pending';
+    $('transfer-badge').textContent = transfers+' entries';
 }
 
 /* ==============================================================
@@ -1070,32 +1173,25 @@ $('snd-btn').addEventListener('click',toggleSound);
    ============================================================== */
 
 document.addEventListener('keydown',function(e){
-    // Ignore if inside input/textarea
     var tag=(e.target.tagName||'').toLowerCase();
     if(tag==='input'||tag==='textarea'){
         if(e.key==='Escape'&&cmdOpen)closeCmd();
         return;
     }
-
     if((e.metaKey||e.ctrlKey)&&e.key==='k'){
         e.preventDefault();
         cmdOpen?closeCmd():openCmd();
         return;
     }
     if(e.key==='Escape'){if(cmdOpen)closeCmd();return;}
-
     switch(e.key){
         case'1':openSection('sec-forge');break;
         case'2':openSection('sec-mint');break;
         case'3':openSection('sec-transfer');break;
-        case'j': // Navigate down in forge table (future enhancement)
-            break;
-        case'k': // Navigate up in forge table
-            break;
+        case'r':loadApplicants();loadTransfers();Toast.show('i','Refreshing\u2026');break;
     }
 });
 
-// Platform-aware shortcut label
 if(navigator.platform&&navigator.platform.toUpperCase().indexOf('MAC')>=0){
     $('cmd-key').textContent='\u2318K';
 }
@@ -1106,16 +1202,14 @@ if(navigator.platform&&navigator.platform.toUpperCase().indexOf('MAC')>=0){
 
 function renderForge(){
     var tbody=$('forge-tbody');
-    if(!MOCK_APPLICANTS.length){
+    if(!APPLICANTS.length){
         tbody.innerHTML='<tr><td colspan="10" class="c-empty" style="text-align:center;padding:2rem;font-family:var(--font-display);font-style:italic">No applicants yet.</td></tr>';
         return;
     }
-
-    tbody.innerHTML=MOCK_APPLICANTS.map(function(app,i){
-        var dec=app._mockDecision;
+    tbody.innerHTML=APPLICANTS.map(function(app,i){
+        var dec=app.decision;
         var statusClass=dec?'status-'+dec:'pending';
         var action;
-
         if(dec){
             action='<span class="badge '+(dec==='accepted'?'b-acc':'b-den')+'">'+esc(dec)+'</span>';
         } else {
@@ -1124,7 +1218,6 @@ function renderForge(){
                 +'<button class="btn btn-n" data-dec="denied" data-id="'+app.id+'">Deny</button>'
                 +'</span>';
         }
-
         return '<tr class="'+statusClass+'" data-id="'+app.id+'" style="animation:rowReveal .3s ease '+(.04*i)+'s both">'
             +'<td class="c-contact">'+esc(app.contact)+'</td>'
             +'<td class="c-trunc" title="'+esc(app.answer_relic)+'">'+esc(app.answer_relic)+'</td>'
@@ -1148,12 +1241,11 @@ function renderForge(){
 
 function renderTransfers(){
     var tbody=$('tx-tbody');
-    if(!MOCK_TRANSFERS.length){
+    if(!TRANSFERS.length){
         tbody.innerHTML='<tr><td colspan="6" class="c-empty" style="text-align:center;padding:2rem;font-family:var(--font-display);font-style:italic">No transfers recorded.</td></tr>';
         return;
     }
-
-    tbody.innerHTML=MOCK_TRANSFERS.map(function(tx,i){
+    tbody.innerHTML=TRANSFERS.map(function(tx,i){
         var tb=tx.tx_type==='initial_mint'
             ?'<span class="badge b-mint">initial mint</span>'
             :'<span class="badge b-tx">transfer</span>';
@@ -1169,13 +1261,13 @@ function renderTransfers(){
 }
 
 /* ==============================================================
-   EVENT: FORGE TABLE — Accept / Deny buttons (delegated)
+   EVENT: FORGE TABLE — Accept / Deny (delegated)
    ============================================================== */
 
 $('forge-tbody').addEventListener('click',function(e){
     var btn=e.target.closest('button[data-dec]');
-    if(!btn)return;
-    handleDecision(btn.dataset.id,btn.dataset.dec);
+    if(!btn||btn.disabled)return;
+    handleDecision(btn.dataset.id, btn.dataset.dec);
 });
 
 /* ==============================================================
@@ -1185,14 +1277,14 @@ $('forge-tbody').addEventListener('click',function(e){
 $('mint-form').addEventListener('submit',function(e){
     e.preventDefault();
     handleMintPiece({
-        piece_id:$('f-id').value.trim(),
-        piece_name:$('f-name').value.trim(),
-        weight:parseFloat($('f-weight').value),
-        edition_number:parseInt($('f-edition').value,10),
-        forge_date:$('f-date').value,
-        owner_name:$('f-owner').value.trim(),
-        owner_email:$('f-email').value.trim(),
-        founder_note:$('f-note').value.trim()
+        piece_id:       $('f-id').value.trim(),
+        piece_name:     $('f-name').value.trim(),
+        weight:         parseFloat($('f-weight').value),
+        edition_number: parseInt($('f-edition').value,10),
+        forge_date:     $('f-date').value,
+        owner_name:     $('f-owner').value.trim(),
+        owner_email:    $('f-email').value.trim(),
+        founder_note:   $('f-note').value.trim()
     });
 });
 
@@ -1201,12 +1293,11 @@ $('mint-form').addEventListener('submit',function(e){
    ============================================================== */
 
 function initDashboard(){
-    renderForge();
-    renderTransfers();
-    renderStats();
-    $('f-date').value=new Date().toISOString().split('T')[0];
-    // Auto-expand first section
+    $('f-date').value = new Date().toISOString().split('T')[0];
     $('sec-forge').classList.add('open');
+    loadApplicants();
+    loadTransfers();
+    subscribeRealtime();
 }
 
 })();
