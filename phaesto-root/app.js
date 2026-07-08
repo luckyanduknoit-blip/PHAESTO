@@ -227,9 +227,7 @@
   // CONTACT VALIDATION — email (@) or 10-11 digit phone
   // =============================================
   function isValidContact(val) {
-    // Email: must contain @
     var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    // Phone: strip all spaces, dashes, parens, dots, leading + — must be exactly 10 or 11 digits
     var digitsOnly = val.replace(/[\s\-\.\(\)\+]/g, '');
     var phoneRe = /^\d{10,11}$/;
     return emailRe.test(val) || phoneRe.test(digitsOnly);
@@ -252,7 +250,6 @@
   // THE FORGE APPLICATION — LIVE PERSISTENT COUNTER
   // =============================================
   var FORGE_API = 'https://txepvzhmllhxpqeboodi.supabase.co/functions/v1/forge-counter';
-  var FORGE_SUBMIT_API = '/api/forge';
 
   function fetchForgeCount(callback) {
     fetch(FORGE_API, { method: 'GET' })
@@ -272,15 +269,21 @@
       .catch(function() { callback(null); });
   }
 
+  // FIX #1: was POST /api/forge (dead endpoint) — now writes directly to Supabase
   function saveForgeApplicant(devotion, contact, callback) {
-    fetch(FORGE_SUBMIT_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ devotion: devotion, contact: contact })
-    })
-      .then(function(r) { return r.json(); })
-      .then(function(data) { callback(data.success === true, null); })
-      .catch(function(err) { callback(false, err); });
+    function waitForSupabase(cb, tries) {
+      tries = tries || 0;
+      if (window._phaestoSupabase) { cb(window._phaestoSupabase); return; }
+      if (tries > 20) { callback(false, new Error('Supabase not ready')); return; }
+      setTimeout(function() { waitForSupabase(cb, tries + 1); }, 100);
+    }
+    waitForSupabase(function(sb) {
+      sb.from('applications')
+        .insert({ answer_carry: devotion, contact: contact, status: 'pending' })
+        .then(function(res) {
+          callback(!res.error, res.error || null);
+        });
+    });
   }
 
   function initForge() {
@@ -289,7 +292,6 @@
     var forgeQ2 = document.getElementById('forge-q2');
     var signalError = document.getElementById('forge-signal-error');
 
-    // Fetch live count every time forge page is opened
     if (forgeCount) {
       forgeCount.textContent = '\u2026';
       fetchForgeCount(function(remaining) {
@@ -297,7 +299,6 @@
       });
     }
 
-    // Clear error only once user starts correcting their input
     if (forgeQ2 && signalError) {
       forgeQ2.addEventListener('input', function() {
         clearSignalError(forgeQ2, signalError);
@@ -311,7 +312,6 @@
       var q1 = document.getElementById('forge-q1').value.trim();
       var q2 = forgeQ2 ? forgeQ2.value.trim() : '';
 
-      // Only trigger error if they typed something invalid — not on empty
       if (q2 && !isValidContact(q2)) {
         showSignalError(forgeQ2, signalError);
         return;

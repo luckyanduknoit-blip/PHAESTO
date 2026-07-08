@@ -2,7 +2,6 @@
 require('dotenv').config();
 
 const inquirer  = require('inquirer');
-const jwt       = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
@@ -25,10 +24,8 @@ function generateCode(prefix, len) {
 }
 
 // ─── EMAIL TEMPLATE ───────────────────────────────────────────────
-function holderAcknowledgmentHTML({ ownerName, pieceName, editionNumber, nfcUrl, referralCode, poolLoginCode }) {
+function holderAcknowledgmentHTML({ ownerName, pieceName, editionNumber, verifyUrl, referralCode, poolLoginCode }) {
   const referralUrl = `https://phaestoatelier.com/enter/${referralCode}`;
-  const tokenPart   = nfcUrl.replace('phaesto.com/verify/', '');
-  const verifyUrl   = `https://phaestoatelier.com/verify/${tokenPart}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -112,12 +109,14 @@ async function main() {
     console.log('✓ Piece exists:', answers.piece_id);
   }
 
-  // 2. NFC TOKEN
-  const token = jwt.sign(
-    { piece_id: answers.piece_id, token_id: uuidv4() },
-    process.env.JWT_SECRET
-  );
-  const nfcUrl = 'phaesto.com/verify/' + token;
+  // 2. NFC TOKEN — FIX #3 & #6: base64 JSON { id: piece uuid } to match nfc.js
+  //    Also FIX #6: URL is phaestoatelier.com (was phaesto.com)
+  const { data: pieceRow } = await supabase.from('pieces').select('id').eq('piece_id', answers.piece_id).single();
+  const pieceUuid = pieceRow ? pieceRow.id : answers.piece_id;
+
+  const tokenPayload = JSON.stringify({ id: pieceUuid, ts: new Date().toISOString(), tid: uuidv4() });
+  const token = Buffer.from(tokenPayload).toString('base64');
+  const verifyUrl = 'https://phaestoatelier.com/verify/' + token;
 
   // 3. POOL LOGIN CODE
   const poolLoginCode = generateCode('PH', 6);
@@ -162,7 +161,7 @@ async function main() {
         ownerName:     answers.owner_name,
         pieceName:     answers.piece_name,
         editionNumber: parseInt(answers.edition_number, 10),
-        nfcUrl,
+        verifyUrl,
         referralCode,
         poolLoginCode
       })
@@ -174,7 +173,7 @@ async function main() {
   }
 
   // 7. NFC LOG
-  console.log('✓ NFC URL:', nfcUrl);
+  console.log('✓ Verify URL:', verifyUrl);
   console.log('→ Program into NTAG216 chip via NFC Tools Pro');
 
   const logEntry = [
@@ -183,7 +182,7 @@ async function main() {
     'Piece:          ' + answers.piece_id + ' — ' + answers.piece_name,
     'Edition:        ' + answers.edition_number,
     'Owner:          ' + answers.owner_name + ' <' + answers.owner_email + '>',
-    'NFC URL:        ' + nfcUrl,
+    'Verify URL:     ' + verifyUrl,
     'Referral Code:  ' + referralCode,
     'Pool Code:      ' + poolLoginCode,
     ''
