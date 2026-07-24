@@ -562,6 +562,15 @@
 
 </div>
 
+<!-- Supabase client — required for forge application submissions -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  window._phaestoSupabase = supabase.createClient(
+    'https://txepvzhmllhxpqeboodi.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4ZXB2emhtbGxoeHBxZWJvb2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTQ1MzgsImV4cCI6MjA5MDQ5MDUzOH0.hFCQ6jsBBFIFPM4whMNW7Z1HOYJJ9vX-zN-B5dEuJso'
+  );
+</script>
+
 <script src="./app.js" defer></script>
 <script src="nfc.js" defer></script>
 
